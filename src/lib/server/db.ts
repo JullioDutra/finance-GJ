@@ -1,0 +1,102 @@
+import "server-only";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Banco, Colecao } from "../types";
+import { COLECOES } from "../types";
+import { bancoVazio, CONFIG_PADRAO } from "../defaults";
+import type { Op } from "../ops";
+
+let cliente: SupabaseClient | null = null;
+
+export function bancoConfigurado(): boolean {
+  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+function sb(): SupabaseClient {
+  if (!bancoConfigurado()) throw new Error("Supabase não configurado (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).");
+  if (!cliente) {
+    cliente = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return cliente;
+}
+
+const TABELA = "registros";
+
+interface Linha {
+  colecao: string;
+  id: string;
+  dados: unknown;
+}
+
+async function lerTudo(): Promise<Linha[]> {
+  const todas: Linha[] = [];
+  const passo = 1000;
+  for (let de = 0; ; de += passo) {
+    const { data, error } = await sb()
+      .from(TABELA)
+      .select("colecao,id,dados")
+      .order("colecao")
+      .order("id")
+      .range(de, de + passo - 1);
+    if (error) throw new Error(`Erro ao ler o banco: ${error.message}`);
+    todas.push(...(data as Linha[]));
+    if (!data || data.length < passo) break;
+  }
+  return todas;
+}
+
+/** Carrega o banco inteiro. Na primeira vez, grava as categorias e tarefas padrão. */
+export async function carregarBanco(): Promise<Banco> {
+  const linhas = await lerTudo();
+  if (!linhas.some((l) => l.colecao === "config")) {
+    const inicial = bancoVazio();
+    await aplicarNoServidor([
+      { tipo: "upsert", colecao: "config", id: "config", dados: inicial.config },
+      ...inicial.categorias.map((c) => ({ tipo: "upsert" as const, colecao: "categorias" as const, id: c.id, dados: c })),
+      ...inicial.tarefas.map((t) => ({ tipo: "upsert" as const, colecao: "tarefas" as const, id: t.id, dados: t })),
+    ]);
+    return inicial;
+  }
+  const b: Banco = {
+    config: { ...CONFIG_PADRAO },
+    categorias: [],
+    lancamentos: [],
+    contas: [],
+    pagamentosContas: [],
+    fornecedores: [],
+    pagamentosFornecedores: [],
+    tarefas: [],
+    eventos: [],
+  };
+  for (const l of linhas) {
+    if (l.colecao === "config") b.config = { ...CONFIG_PADRAO, ...(l.dados as object), id: "config" };
+    else if ((COLECOES as string[]).includes(l.colecao)) {
+      (b[l.colecao as Exclude<Colecao, "config">] as unknown[]).push({ ...(l.dados as object), id: l.id });
+    }
+  }
+  return b;
+}
+
+export async function aplicarNoServidor(ops: Op[]): Promise<void> {
+  const validas = ops.filter((o) => (COLECOES as string[]).includes(o.colecao) && typeof o.id === "string" && o.id.length > 0 && o.id.length < 200);
+  // última operação de cada registro vence
+  const finais = new Map<string, Op>();
+  for (const o of validas) finais.set(`${o.colecao}\u0000${o.id}`, o);
+  const upserts: Linha[] = [];
+  const deletes = new Map<string, string[]>();
+  for (const o of finais.values()) {
+    if (o.tipo === "upsert") upserts.push({ colecao: o.colecao, id: o.id, dados: { ...(o.dados as object), id: o.id } });
+    else deletes.set(o.colecao, [...(deletes.get(o.colecao) ?? []), o.id]);
+  }
+  const agora = new Date().toISOString();
+  for (let i = 0; i < upserts.length; i += 500) {
+    const lote = upserts.slice(i, i + 500).map((u) => ({ ...u, atualizado_em: agora }));
+    const { error } = await sb().from(TABELA).upsert(lote, { onConflict: "colecao,id" });
+    if (error) throw new Error(`Erro ao salvar: ${error.message}`);
+  }
+  for (const [colecao, ids] of deletes) {
+    const { error } = await sb().from(TABELA).delete().eq("colecao", colecao).in("id", ids);
+    if (error) throw new Error(`Erro ao apagar: ${error.message}`);
+  }
+}
