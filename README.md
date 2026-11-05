@@ -47,17 +47,23 @@ npm run testar
 - **iPhone (Safari):** Compartilhar → *Adicionar à Tela de Início*.
 - **Android (Chrome):** menu ⋮ → *Instalar app*.
 
-## WhatsApp
-Configure no provedor o webhook:
+## WhatsApp (Evolution API)
 
-```
-https://SEU-APP.vercel.app/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN
-```
+1. Na instância da Evolution → **Webhook** → ativar, com a URL:
+   ```
+   https://financas-gj.vercel.app/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN
+   ```
+2. Eventos: só **MESSAGES_UPSERT** (Webhook by Events e Base64 desligados — se ligar “by events”, também funciona).
+3. Cadastrem os números de vocês em **Ajustes** para o sistema saber quem mandou (se não achar o número, tenta pelo nome do perfil).
+4. Mandem mensagens para o número da instância (ou num grupo com ele). As respostas do robô começam com 🤖.
 
-Aceita **Meta WhatsApp Cloud API** (o mesmo token é o *Verify token*), **Twilio**, **Z-API**, **Evolution API** e JSON genérico (`{"from": "5511...", "text": "mercado 50"}`, útil para n8n/Make).
-Cadastre os números de vocês em **Ajustes** para o sistema saber quem mandou.
+O app responde usando o `server_url`, `instance` e `apikey` que a própria Evolution envia no webhook.
+Se preferir fixar, cadastre na Vercel `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_INSTANCE`.
+Se o número da instância for de um de vocês, a conversa “comigo mesmo” também funciona.
 
 Exemplos: `mercado 154,90` · `gastei 45 uber` · `recebi 3500 salário` · `guardei 500` · `paguei luz` · `resumo` · `contas` · `casamento`.
+
+Também aceita Meta Cloud API, Twilio, Z-API e JSON genérico (`{"from": "5511...", "text": "mercado 50"}`).
 
 ## Estrutura
 ```

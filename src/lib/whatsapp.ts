@@ -76,12 +76,17 @@ export function nomePessoa(b: Banco, p: PessoaId): string {
   return p === "p1" ? b.config.nomeP1 : p === "p2" ? b.config.nomeP2 : "Casal";
 }
 
-/** Descobre quem mandou pelo número do telefone (compara os últimos 8 dígitos). */
-export function pessoaPorTelefone(b: Banco, telefone: string): PessoaId {
+/** Descobre quem mandou pelo número (últimos 8 dígitos); se não achar, tenta pelo nome do perfil. */
+export function pessoaPorTelefone(b: Banco, telefone: string, nomePerfil = ""): PessoaId {
   const fim = (s: string) => s.replace(/\D/g, "").slice(-8);
   const t = fim(telefone);
   if (t && fim(b.config.telefoneP1) === t) return "p1";
   if (t && fim(b.config.telefoneP2) === t) return "p2";
+  const n = semAcento(nomePerfil).split(/\s+/)[0] ?? "";
+  if (n.length >= 3) {
+    if (semAcento(b.config.nomeP1).startsWith(n) || n.startsWith(semAcento(b.config.nomeP1))) return "p1";
+    if (semAcento(b.config.nomeP2).startsWith(n) || n.startsWith(semAcento(b.config.nomeP2))) return "p2";
+  }
   return "casal";
 }
 

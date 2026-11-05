@@ -137,10 +137,23 @@ function WhatsApp() {
         <div className="space-y-2 text-sm">
           <p>Mandem mensagens como estas para o número conectado e o lançamento cai direto no sistema:</p>
           <pre className="whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-xs">{AJUDA_WHATSAPP.replace(/\*/g, "").replace(/`/g, "")}</pre>
-          <p className="text-muted">
-            Endereço do webhook para configurar no provedor (Meta Cloud API, Z-API, Evolution, Twilio, n8n…):
-          </p>
-          <code className="block break-all rounded-xl bg-surface-2 p-2 text-xs">{origem}/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN</code>
+          <details className="rounded-xl border border-line p-3">
+            <summary className="cursor-pointer font-medium">Configurar na Evolution API</summary>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted">
+              <li>
+                No painel da Evolution, abra a instância → <strong>Webhook</strong> → ative.
+              </li>
+              <li>
+                URL: <code className="break-all">{origem}/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN</code> (o token está na Vercel, variável{" "}
+                <code>WHATSAPP_WEBHOOK_TOKEN</code>).
+              </li>
+              <li>
+                Eventos: marque só <strong>MESSAGES_UPSERT</strong>. “Webhook by Events” e “Base64” desligados.
+              </li>
+              <li>Mandem mensagem para o número conectado na instância (ou num grupo com ele). O robô responde confirmando com 🤖.</li>
+              <li>Para saber quem mandou, preencham os WhatsApps de vocês em “Casal e casamento” acima.</li>
+            </ol>
+          </details>
           {modo !== "nuvem" && <p className="text-xs text-warn">⚠️ O WhatsApp só funciona com o banco de dados (Neon) conectado.</p>}
         </div>
         <form onSubmit={enviar} className="space-y-2">

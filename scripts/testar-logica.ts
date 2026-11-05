@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
+import { extrairMensagem } from "../src/lib/whatsapp-entrada";
 import { aplicarOps } from "../src/lib/ops";
 import { processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
@@ -132,6 +133,39 @@ assert.equal(pi.totalRestante, 14775);
 assert.equal(pi.disponivel, 0, "pagos da planilha não descontam da reserva");
 assert.equal(pi.semValor.length, 1); // Lapela
 assert.equal(pi.faltaGuardar, 14775);
+
+// ---------- Evolution API ----------
+const evo = (data: object, extra: object = {}) => ({ event: "messages.upsert", instance: "gj", server_url: "https://evo.exemplo.com", apikey: "k", sender: "5511977776666@s.whatsapp.net", data, ...extra });
+// conversa direta com o número do robô
+let ev: ReturnType<typeof extrairMensagem> = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false, id: "1" }, pushName: "Jullio", message: { conversation: "mercado 10" } }));
+assert.ok(ev && ev !== "ignorar");
+{
+  assert.equal(ev.provedor, "evolution"); assert.equal(ev.de, "5511999991111"); assert.equal(ev.texto, "mercado 10");
+  assert.equal(ev.responderPara, "5511999991111@s.whatsapp.net"); assert.equal(ev.instancia, "gj");
+  assert.equal(pessoaPorTelefone(b, ev.de, ev.nome), "p1");
+}
+// texto estendido (respondendo/citando) e formato @lid com senderPn
+ev = extrairMensagem(evo({ key: { remoteJid: "123456789@lid", senderPn: "5511988882222@s.whatsapp.net", fromMe: false }, pushName: "Gabi", message: { extendedTextMessage: { text: "uber 20" } } }));
+assert.ok(ev && ev !== "ignorar" && ev.de === "5511988882222" && ev.texto === "uber 20" && ev.responderPara === "123456789@lid");
+// grupo: quem mandou é o participant
+ev = extrairMensagem(evo({ key: { remoteJid: "1203630@g.us", participant: "5511988882222@s.whatsapp.net", fromMe: false }, pushName: "Gabriella", message: { conversation: "guardei 100" } }));
+assert.ok(ev && ev !== "ignorar" && ev.de === "5511988882222" && ev.responderPara === "1203630@g.us");
+// @lid sem telefone -> identifica pelo nome do perfil
+const bNomes = { ...b, config: { ...b.config, nomeP1: "Jullio", nomeP2: "Gabriella", telefoneP1: "", telefoneP2: "" } };
+assert.equal(pessoaPorTelefone(bNomes, "999", "Gabriella Souza"), "p2");
+assert.equal(pessoaPorTelefone(bNomes, "999", "Gabi"), "casal", "apelido curto não bate");
+assert.equal(pessoaPorTelefone(bNomes, "999", "Jullio Dutra"), "p1");
+// mensagens próprias: ignora, exceto conversa comigo mesmo; nunca a resposta do robô
+assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: true }, message: { conversation: "oi" } })), "ignorar");
+ev = extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "luz 100" } }));
+assert.ok(ev && ev !== "ignorar" && ev.de === "5511977776666");
+assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "🤖 ✅ Gasto registrado" } })), "ignorar");
+// outros eventos e mensagens sem texto
+assert.equal(extrairMensagem({ event: "connection.update", instance: "gj", data: { state: "open" } }), "ignorar");
+assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { audioMessage: {} } })), "ignorar");
+// evento em maiúsculas (MESSAGES_UPSERT) também vale
+ev = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { conversation: "resumo" } }, { event: "MESSAGES_UPSERT" }));
+assert.ok(ev && ev !== "ignorar");
 
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);
