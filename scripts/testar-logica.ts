@@ -170,6 +170,11 @@ assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.n
 ev = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { conversation: "resumo" } }, { event: "MESSAGES_UPSERT" }));
 assert.ok(ev && ev !== "ignorar");
 
+// IDs extras aprovados (código interno LID) — comparação exata
+const bLid = { ...b, config: { ...b.config, whatsappExtraP2: ["123456789012345"] } };
+assert.equal(identificarPessoa(bLid, "123456789012345"), "p2");
+assert.equal(identificarPessoa(bLid, "999456789012345"), null, "não basta bater o final");
+
 // ---------- modo finanças (iniciar / encerrar) ----------
 assert.equal(comandoSessao("iniciar finanças"), "iniciar");
 assert.equal(comandoSessao("  Iniciar Finanças!  "), "iniciar");

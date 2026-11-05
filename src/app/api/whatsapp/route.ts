@@ -107,7 +107,21 @@ export async function POST(req: Request) {
       // O número da Evolution pode ser o WhatsApp pessoal de vocês: só atende os números
       // cadastrados (ou a conversa "comigo mesmo").
       if (!conhecida && !recebida.propria) {
-        console.info(`whatsapp: ignorado número não cadastrado (final ${recebida.de.slice(-4) || "?"})`);
+        const cad = [banco.config.telefoneP1, banco.config.telefoneP2].map((t) => t.replace(/\D/g, "").slice(-4)).filter(Boolean);
+        console.info(
+          `whatsapp: ignorado ${recebida.lid ? "código interno (LID)" : "telefone"} final ${recebida.de.slice(-4) || "?"}` +
+            ` — cadastrados: ${cad.length ? cad.map((c) => `final ${c}`).join(", ") : "nenhum"}`,
+        );
+        // guarda para aprovação em Ajustes (só quem está logado no app pode aprovar)
+        if (recebida.de) {
+          await gravarInterno("_whatsapp_recusados", recebida.de, {
+            id: recebida.de,
+            lid: !!recebida.lid,
+            nome: recebida.nome.slice(0, 60),
+            texto: recebida.texto.slice(0, 60),
+            quando: new Date().toISOString(),
+          });
+        }
         return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
       }
       if (recebida.propria && !conhecida) pessoa = identificarPessoa(banco, recebida.de) ?? "casal";

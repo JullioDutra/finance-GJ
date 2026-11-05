@@ -13,6 +13,8 @@ export interface Recebida {
   instancia?: string;
   servidor?: string;
   apikey?: string;
+  /** true quando o WhatsApp mandou só o código interno (LID) e não o telefone */
+  lid?: boolean;
   /** mensagem enviada pelo próprio número da instância (conversa "comigo mesmo") */
   propria?: boolean;
   grupo?: boolean;
@@ -58,6 +60,7 @@ function evolution(body: Json): Recebida | "ignorar" | null {
 
   return {
     de: digitos(comTelefone),
+    lid: comTelefone.endsWith("@lid"),
     nome: str(data.pushName),
     texto,
     provedor: "evolution",

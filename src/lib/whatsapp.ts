@@ -88,11 +88,15 @@ export function pessoaPorTelefone(b: Banco, telefone: string): PessoaId {
  * Devolve null quando não é nenhum de vocês dois.
  */
 export function identificarPessoa(b: Banco, telefone: string): "p1" | "p2" | null {
-  const fim = (s: string) => s.replace(/\D/g, "").slice(-8);
-  const t = fim(telefone);
+  const so = (s: string) => s.replace(/\D/g, "");
+  const completo = so(telefone);
+  const t = completo.slice(-8);
   if (t.length < 8) return null;
-  if (fim(b.config.telefoneP1) === t) return "p1";
-  if (fim(b.config.telefoneP2) === t) return "p2";
+  if (so(b.config.telefoneP1).slice(-8) === t) return "p1";
+  if (so(b.config.telefoneP2).slice(-8) === t) return "p2";
+  // IDs aprovados manualmente em Ajustes (comparação exata)
+  if ((b.config.whatsappExtraP1 ?? []).some((x) => so(x) === completo)) return "p1";
+  if ((b.config.whatsappExtraP2 ?? []).some((x) => so(x) === completo)) return "p2";
   return null;
 }
 

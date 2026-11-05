@@ -21,8 +21,11 @@ import {
   Smartphone,
   Tags,
   Trash2,
+  ShieldQuestion,
   Upload,
+  UserCheck,
   UsersRound,
+  X,
 } from "lucide-react";
 import { Botao, Campo, Card, cx, Input, Modal, Select, SeletorPessoa, Selo, Titulo } from "@/components/ui";
 import { ChipCategoria, ICONES_CATEGORIA, iconeDaCategoria } from "@/components/icones";
@@ -38,12 +41,12 @@ export default function Ajustes() {
         <Acesso />
       </div>
       <ConfigCasal />
+      <WhatsApp />
       <Categorias />
       <div className="grid gap-5 lg:grid-cols-2">
         <Instalar />
         <Backup />
       </div>
-      <WhatsApp />
     </div>
   );
 }
@@ -192,8 +195,14 @@ function ConfigCasal() {
         className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
+          // parte da config atual (não apaga o que foi mudado em outra tela, ex.: IDs do WhatsApp)
           const nova: Configuracoes = {
-            ...c,
+            ...banco.config,
+            nomeP1: c.nomeP1,
+            nomeP2: c.nomeP2,
+            telefoneP1: c.telefoneP1,
+            telefoneP2: c.telefoneP2,
+            dataCasamento: c.dataCasamento,
             orcamentoCasamento: n(num.orcamentoCasamento),
             reservaInicial: n(num.reservaInicial),
             metaMensalGuardar: n(num.metaMensalGuardar),
@@ -237,6 +246,107 @@ function ConfigCasal() {
   );
 }
 
+interface Recusado {
+  id: string;
+  lid: boolean;
+  nome: string;
+  texto: string;
+  quando: string;
+}
+
+/** Números que tentaram usar o robô e não foram reconhecidos + IDs já aprovados. */
+function Remetentes() {
+  const { banco, aplicar, aviso, recarregar, modo } = useDados();
+  const [lista, setLista] = useState<Recusado[]>([]);
+
+  async function carregar() {
+    const r = await fetch("/api/remetentes", { cache: "no-store" }).then((x) => (x.ok ? x.json() : { recusados: [] }));
+    setLista((r as { recusados: Recusado[] }).recusados);
+  }
+  useEffect(() => {
+    // busca assíncrona
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (modo === "nuvem") carregar();
+  }, [modo]);
+
+  async function aprovar(id: string, pessoa: "p1" | "p2") {
+    const res = await fetch("/api/remetentes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, pessoa }) });
+    if (!res.ok) return aviso("Não foi possível aprovar", "erro");
+    aviso(`Pronto: agora o robô reconhece ${pessoa === "p1" ? banco.config.nomeP1 : banco.config.nomeP2} por esse número`);
+    await recarregar();
+    carregar();
+  }
+
+  async function descartar(id: string) {
+    await fetch(`/api/remetentes?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+    carregar();
+  }
+
+  async function removerAprovado(campo: "whatsappExtraP1" | "whatsappExtraP2", id: string) {
+    if (!confirm("Remover esse ID? O robô deixa de reconhecer esse número.")) return;
+    const novos = (banco.config[campo] ?? []).filter((x) => x !== id);
+    await aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, [campo]: novos } }], "ID removido");
+  }
+
+  const aprovados = [
+    ...(banco.config.whatsappExtraP1 ?? []).map((id) => ({ id, campo: "whatsappExtraP1" as const, nome: banco.config.nomeP1 })),
+    ...(banco.config.whatsappExtraP2 ?? []).map((id) => ({ id, campo: "whatsappExtraP2" as const, nome: banco.config.nomeP2 })),
+  ];
+
+  if (modo !== "nuvem") return null;
+  return (
+    <div className="space-y-3">
+      {lista.length > 0 && (
+        <div className="rounded-2xl border border-warn/30 bg-warn-soft p-4">
+          <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-warn">
+            <ShieldQuestion className="h-4 w-4" /> Tentaram usar o robô e não foram reconhecidos
+          </div>
+          <p className="mb-3 text-xs text-muted">
+            Se for um de vocês, toque no nome para liberar. Às vezes o WhatsApp manda um código interno no lugar do telefone — por isso o número pode parecer estranho.
+          </p>
+          <ul className="space-y-2">
+            {lista.map((r) => (
+              <li key={r.id} className="rounded-xl bg-surface p-3 text-sm">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-medium">
+                    {r.nome || "Sem nome"} <span className="num text-xs font-normal text-muted">· {r.lid ? "código" : "número"} final {r.id.slice(-4)}</span>
+                  </span>
+                  <span className="text-xs text-muted">{new Date(r.quando).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+                </div>
+                {r.texto && <div className="mt-0.5 truncate text-xs text-muted">“{r.texto}”</div>}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Botao pequeno icone={UserCheck} onClick={() => aprovar(r.id, "p1")}>
+                    É {banco.config.nomeP1}
+                  </Botao>
+                  <Botao pequeno icone={UserCheck} onClick={() => aprovar(r.id, "p2")}>
+                    É {banco.config.nomeP2}
+                  </Botao>
+                  <Botao pequeno variante="fantasma" icone={X} onClick={() => descartar(r.id)}>
+                    Não conheço
+                  </Botao>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {aprovados.length > 0 && (
+        <div className="text-xs text-muted">
+          <span className="font-medium text-ink">IDs extras liberados:</span>{" "}
+          {aprovados.map((a) => (
+            <span key={a.id} className="mr-2 inline-flex items-center gap-1">
+              {a.nome} (final {a.id.slice(-4)})
+              <button type="button" className="text-danger" onClick={() => removerAprovado(a.campo, a.id)} aria-label="Remover">
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WhatsApp() {
   const { banco, aplicar, modo } = useDados();
   const [origem] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
@@ -254,8 +364,13 @@ function WhatsApp() {
   }
 
   return (
-    <Card titulo="WhatsApp" icone={MessageCircle} acao={<Selo>pausado</Selo>}>
-      <details>
+    <Card titulo="WhatsApp" icone={MessageCircle}>
+      <p className="mb-4 text-sm text-muted">
+        Mandem <code className="rounded bg-surface-2 px-1">iniciar finanças</code> para o número do robô para começar e{" "}
+        <code className="rounded bg-surface-2 px-1">encerrar</code> para voltar à conversa normal.
+      </p>
+      <Remetentes />
+      <details className="mt-4">
         <summary className="cursor-pointer text-sm text-muted">Ver instruções e simulador</summary>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="space-y-2 text-sm">

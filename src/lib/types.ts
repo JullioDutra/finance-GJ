@@ -17,6 +17,9 @@ export interface Configuracoes {
   diaPadraoContas: number; // dia do mês das contas fixas (6)
   telefoneP1: string; // para identificar quem mandou no WhatsApp (só dígitos)
   telefoneP2: string;
+  /** IDs extras do WhatsApp aprovados em Ajustes (ex.: código interno LID) */
+  whatsappExtraP1?: string[];
+  whatsappExtraP2?: string[];
   grupoWhatsapp?: string; // legado (não usado mais: o WhatsApp agora usa "iniciar finanças")
 }
 
