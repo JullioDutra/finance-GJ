@@ -43,6 +43,11 @@ npm run testar
    Alternativa ao Neon: Supabase (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, rodando antes [`supabase/schema.sql`](supabase/schema.sql)).
 4. Se já lançaram coisas no modo local: em **Ajustes → Exportar backup** antes e **Importar backup** depois.
 
+## Acesso
+- Entram com o **PIN** (`APP_PIN`) e ficam conectados por ~1 ano em cada aparelho.
+- No primeiro login o app oferece **entrar com digital / Face ID** (passkey). Depois é só tocar no botão.
+  Os aparelhos cadastrados aparecem (e podem ser removidos) em **Ajustes → Acesso**.
+
 ## Instalar no celular
 - **iPhone (Safari):** Compartilhar → *Adicionar à Tela de Início*.
 - **Android (Chrome):** menu ⋮ → *Instalar app*.

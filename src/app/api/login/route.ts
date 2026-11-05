@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { COOKIE_SESSAO, tokenSessao } from "@/lib/server/auth";
+import { COOKIE_SESSAO, OPCOES_COOKIE_SESSAO, tokenSessao } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
   const { pin } = (await req.json().catch(() => ({}))) as { pin?: string };
@@ -8,13 +8,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "PIN incorreto" }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_SESSAO, await tokenSessao(), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-  });
+  res.cookies.set(COOKIE_SESSAO, await tokenSessao(), OPCOES_COOKIE_SESSAO);
   return res;
 }
 

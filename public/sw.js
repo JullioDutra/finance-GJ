@@ -1,6 +1,6 @@
 // Service worker simples: deixa o app instalável e abre mesmo sem internet
 // (mostra a última versão das telas). Os dados (/api) nunca são guardados em cache.
-const CACHE = "gj-v1";
+const CACHE = "gj-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/manifest.webmanifest"]).catch(() => undefined)));
@@ -38,7 +38,7 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     fetch(req)
       .then((res) => {
-        if (res.ok && res.type === "basic") {
+        if (res.ok && res.type === "basic" && !res.redirected) {
           const copia = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copia));
         }

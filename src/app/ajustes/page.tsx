@@ -8,12 +8,15 @@ import type { Op } from "@/lib/ops";
 import type { Banco, Categoria, Configuracoes, PessoaId, TipoLancamento } from "@/lib/types";
 import { COLECOES } from "@/lib/types";
 import { Botao, Campo, Card, cx, Input, Modal, Select, SeletorPessoa, Selo, Titulo } from "@/components/ui";
+import { cadastrarDigital, digitalDisponivel } from "@/lib/passkey-cliente";
+import { dataBR } from "@/lib/format";
 
 export default function Ajustes() {
   return (
     <div className="space-y-4">
       <Titulo titulo="Ajustes" sub="Dados do casal, categorias, WhatsApp, instalação e backup" />
       <Status />
+      <Acesso />
       <ConfigCasal />
       <WhatsApp />
       <Categorias />
@@ -46,6 +49,94 @@ function Status() {
           </ol>
         </div>
       )}
+    </Card>
+  );
+}
+
+interface Aparelho {
+  id: string;
+  nome: string;
+  criadoEm: string;
+  ultimoUso?: string;
+}
+
+function Acesso() {
+  const { modo, aviso } = useDados();
+  const [aparelhos, setAparelhos] = useState<Aparelho[] | null>(null);
+  const [suporta, setSuporta] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+
+  async function carregar() {
+    const r = await fetch("/api/passkey/lista").then((x) => (x.ok ? x.json() : { passkeys: [] }));
+    setAparelhos((r as { passkeys: Aparelho[] }).passkeys);
+  }
+  useEffect(() => {
+    digitalDisponivel().then(setSuporta);
+    // busca assíncrona da lista de aparelhos
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (modo === "nuvem") carregar();
+  }, [modo]);
+
+  if (modo !== "nuvem") return null;
+  return (
+    <Card titulo="🔐 Acesso">
+      <p className="mb-3 text-sm text-muted">Vocês ficam conectados por 1 ano em cada aparelho. Com a digital / Face ID ativada, não precisa nem digitar o PIN.</p>
+      {aparelhos && aparelhos.length > 0 && (
+        <ul className="mb-3 divide-y divide-line rounded-xl border border-line text-sm">
+          {aparelhos.map((a) => (
+            <li key={a.id} className="flex items-center justify-between gap-2 px-3 py-2">
+              <span>
+                📱 {a.nome}
+                <span className="block text-xs text-muted">
+                  ativado em {dataBR(a.criadoEm.slice(0, 10))}
+                  {a.ultimoUso && ` · último uso ${dataBR(a.ultimoUso.slice(0, 10))}`}
+                </span>
+              </span>
+              <button
+                type="button"
+                className="text-xs text-danger"
+                onClick={async () => {
+                  if (!confirm(`Remover a digital do aparelho "${a.nome}"?`)) return;
+                  await fetch("/api/passkey/remover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: a.id }) });
+                  aviso("Aparelho removido");
+                  carregar();
+                }}
+              >
+                remover
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {suporta ? (
+          <Botao
+            disabled={ocupado}
+            onClick={async () => {
+              setOcupado(true);
+              const r = await cadastrarDigital();
+              setOcupado(false);
+              if (r.ok) {
+                aviso("Digital / Face ID ativada neste aparelho ✅");
+                carregar();
+              } else aviso(r.erro, "erro");
+            }}
+          >
+            {ocupado ? "Aguardando…" : "Ativar digital / Face ID neste aparelho"}
+          </Botao>
+        ) : (
+          <p className="text-sm text-muted">Este navegador não oferece digital / Face ID.</p>
+        )}
+        <Botao
+          variante="fantasma"
+          onClick={async () => {
+            await fetch("/api/login", { method: "DELETE" });
+            window.location.replace("/login");
+          }}
+        >
+          Sair deste aparelho
+        </Botao>
+      </div>
     </Card>
   );
 }
@@ -314,7 +405,7 @@ function Instalar() {
 }
 
 function Backup() {
-  const { banco, aplicar, modo } = useDados();
+  const { banco, aplicar } = useDados();
   const [msg, setMsg] = useState("");
 
   function exportar() {
@@ -354,17 +445,6 @@ function Backup() {
           ⬆️ Importar backup
           <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
         </label>
-        {modo === "nuvem" && (
-          <Botao
-            variante="fantasma"
-            onClick={async () => {
-              await fetch("/api/login", { method: "DELETE" });
-              window.location.href = "/login";
-            }}
-          >
-            Sair
-          </Botao>
-        )}
       </div>
       {msg && <p className="mt-2 text-sm text-danger">{msg}</p>}
     </Card>

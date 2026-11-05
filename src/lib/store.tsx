@@ -64,7 +64,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/dados", { cache: "no-store" });
       if (res.status === 401) {
-        window.location.href = "/login";
+        // sessão expirada: vai para o login (mas nunca recarrega a própria tela de login)
+        if (window.location.pathname !== "/login") window.location.replace("/login");
         return;
       }
       const json = (await res.json()) as { modo: string; banco?: Banco; erro?: string };
@@ -93,6 +94,8 @@ export function DadosProvider({ children }: { children: React.ReactNode }) {
   }, [trocarBanco]);
 
   useEffect(() => {
+    // Na tela de login ainda não há sessão: não busca dados (evitava o loop de recarregar)
+    if (window.location.pathname === "/login") return;
     // carga inicial dos dados (assíncrona)
     // eslint-disable-next-line react-hooks/set-state-in-effect
     recarregar();

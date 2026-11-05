@@ -14,8 +14,13 @@ const urlPostgres = () => process.env.DATABASE_URL || process.env.POSTGRES_URL |
 const usaNeon = () => !!urlPostgres();
 const usaSupabase = () => !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Banco em memória: só para testes locais (GJ_BANCO_MEMORIA=1). Some ao reiniciar o servidor.
+const usaMemoria = () => process.env.GJ_BANCO_MEMORIA === "1" && !usaNeon() && !usaSupabase();
+const g = globalThis as unknown as { __gjMemoria?: Map<string, { colecao: string; id: string; dados: unknown }> };
+const memoria = (g.__gjMemoria ??= new Map());
+
 export function bancoConfigurado(): boolean {
-  return usaNeon() || usaSupabase();
+  return usaNeon() || usaSupabase() || usaMemoria();
 }
 
 let cliente: SupabaseClient | null = null;
@@ -58,6 +63,7 @@ interface Linha {
 }
 
 async function lerTudo(): Promise<Linha[]> {
+  if (usaMemoria()) return [...memoria.values()].map((l) => ({ ...l, dados: structuredClone(l.dados) }));
   if (usaNeon()) {
     const sql = await pg();
     return (await sql.query("select colecao, id, dados from registros order by colecao, id")) as Linha[];
@@ -111,8 +117,24 @@ export async function carregarBanco(): Promise<Banco> {
   return b;
 }
 
+// ---------- coleções internas (só o servidor lê; nunca vão para o navegador) ----------
+export type ColecaoInterna = "_passkeys";
+
+export async function lerInterno<T>(colecao: ColecaoInterna): Promise<T[]> {
+  return (await lerTudo()).filter((l) => l.colecao === colecao).map((l) => l.dados as T);
+}
+
+export async function gravarInterno(colecao: ColecaoInterna, id: string, dados: object | null): Promise<void> {
+  const op = dados ? { tipo: "upsert", colecao, id, dados } : { tipo: "delete", colecao, id };
+  await gravar([op as unknown as Op]);
+}
+
 export async function aplicarNoServidor(ops: Op[]): Promise<void> {
-  const validas = ops.filter((o) => (COLECOES as string[]).includes(o.colecao) && typeof o.id === "string" && o.id.length > 0 && o.id.length < 200);
+  await gravar(ops.filter((o) => (COLECOES as string[]).includes(o.colecao)));
+}
+
+async function gravar(ops: Op[]): Promise<void> {
+  const validas = ops.filter((o) => typeof o.id === "string" && o.id.length > 0 && o.id.length < 600);
   // última operação de cada registro vence
   const finais = new Map<string, Op>();
   for (const o of validas) finais.set(`${o.colecao}\u0000${o.id}`, o);
@@ -121,6 +143,11 @@ export async function aplicarNoServidor(ops: Op[]): Promise<void> {
   for (const o of finais.values()) {
     if (o.tipo === "upsert") upserts.push({ colecao: o.colecao, id: o.id, dados: { ...(o.dados as object), id: o.id } });
     else deletes.set(o.colecao, [...(deletes.get(o.colecao) ?? []), o.id]);
+  }
+  if (usaMemoria()) {
+    for (const u of upserts) memoria.set(`${u.colecao}\u0000${u.id}`, structuredClone(u));
+    for (const [colecao, ids] of deletes) for (const id of ids) memoria.delete(`${colecao}\u0000${id}`);
+    return;
   }
   if (usaNeon()) {
     const sql = await pg();

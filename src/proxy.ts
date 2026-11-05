@@ -16,6 +16,6 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!login|api/login|api/whatsapp|api/saude|_next/static|_next/image|favicon.ico|icon.png|manifest.webmanifest|sw.js|icons/).*)",
+    "/((?!login|api/login|api/passkey/login|api/whatsapp|api/saude|_next/static|_next/image|favicon.ico|icon.png|manifest.webmanifest|sw.js|icons/).*)",
   ],
 };
