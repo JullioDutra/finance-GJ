@@ -163,6 +163,8 @@ assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.n
 ev = extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "luz 100" } }));
 assert.ok(ev && ev !== "ignorar" && ev.de === "5511977776666" && ev.propria === true);
 assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "🤖 ✅ Gasto registrado" } })), "ignorar");
+// resposta nova do robô (cartão com divisória) na conversa "comigo mesmo" também é ignorada
+assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "✅ *Gasto registrado*\n━━━━━━━━━━━━━━━━━━\n🛒 *Mercado* · *R$ 10,00*" } })), "ignorar");
 // outros eventos e mensagens sem texto
 assert.equal(extrairMensagem({ event: "connection.update", instance: "gj", data: { state: "open" } }), "ignorar");
 assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { audioMessage: {} } })), "ignorar");

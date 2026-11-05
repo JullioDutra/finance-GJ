@@ -1,6 +1,9 @@
 // Lê o corpo (JSON) que cada provedor de WhatsApp manda no webhook e devolve
 // quem mandou + o texto. Função pura, testada em scripts/testar-logica.ts.
 
+import { ehMensagemDoRobo } from "./whatsapp-modelos";
+
+/** legado: respostas antigas começavam com este emoji */
 export const MARCA_BOT = "🤖";
 
 export interface Recebida {
@@ -48,7 +51,7 @@ function evolution(body: Json): Recebida | "ignorar" | null {
     // Só aceita mensagem própria quando é a conversa "comigo mesmo" (número da instância é de vocês)
     // e nunca as respostas do próprio robô (evita loop).
     const conversaComigo = !grupo && dono && digitos(remoteJid) === digitos(dono);
-    if (!conversaComigo || texto.trim().startsWith(MARCA_BOT)) return "ignorar";
+    if (!conversaComigo || ehMensagemDoRobo(texto)) return "ignorar";
   }
 
   // Em grupo, quem mandou é o participant. No formato novo (@lid) o telefone vem nos campos *Alt / senderPn.

@@ -2,22 +2,12 @@
 // Usado tanto pelo webhook (/api/whatsapp) quanto pelo simulador na tela de Ajustes.
 
 import type { Banco, Categoria, PessoaId, TipoLancamento } from "./types";
-import { dinheiro, isoDe, mesDe, nomeMes, parseValor, semAcento } from "./format";
-import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "./calc";
+import { dataCurta, diasEntre, dinheiro, isoDe, mesDe, nomeMes, parseValor, semAcento, somarMeses } from "./format";
+import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "./calc";
 import { opNovoLancamento, opsPagarConta, type Op } from "./ops";
+import { barra, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela } from "./whatsapp-modelos";
 
-export const AJUDA_WHATSAPP = `*Como lançar pelo WhatsApp* 💬
-
-*Começar:* \`iniciar finanças\` · *Sair:* \`encerrar\`
-
-*Gasto:* \`mercado 154,90\` ou \`gastei 45 uber\`
-*Receita:* \`recebi 3500 salário\` ou \`+3500 salário\`
-*Guardar p/ casamento:* \`guardei 500\`
-*Conta do dia 6:* \`paguei luz\` (ou \`paguei luz 187,30\`)
-*Data:* termine com \`ontem\` ou \`12/03\`
-*De quem:* inclua \`casal\` para lançar como do casal
-
-*Consultas:* \`resumo\`, \`contas\`, \`casamento\`, \`ajuda\``;
+export const AJUDA_WHATSAPP = MSG_AJUDA;
 
 export interface ResultadoMensagem {
   ops: Op[];
@@ -109,43 +99,85 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     return { ops: [], resposta: AJUDA_WHATSAPP, ok: true };
   }
 
+  const mesNome = nomeMes(mes).split(" ")[0].toLowerCase();
+
   if (["resumo", "saldo", "mes", "extrato"].includes(norm)) {
     const r = resumoMes(b, mes);
-    const top = r.porCategoria.slice(0, 3).map((c) => `• ${c.categoria.nome}: ${dinheiro(c.total)}`).join("\n");
+    const ant = resumoMes(b, somarMeses(mes, -1));
+    const vCasa = variacao(r.casa, ant.casa);
+    const top = r.porCategoria.slice(0, 3).map((c, i) => `${i + 1}. ${emojiCategoria(c.categoria)} ${c.categoria.nome} · ${dinheiro(c.total)}`);
     return {
       ok: true,
       ops: [],
-      resposta:
-        `*Resumo de ${nomeMes(mes)}*\n` +
-        `💰 Receitas: ${dinheiro(r.receitas)}\n` +
-        `💸 Gastos: ${dinheiro(r.despesas)}\n` +
-        `💒 Guardado: ${dinheiro(r.guardado)}\n` +
-        `📊 Sobra: ${dinheiro(r.sobra)}\n` +
-        `🏠 Custo da casa: ${dinheiro(r.casa)}` +
-        (top ? `\n\n*Mais gastos:*\n${top}` : ""),
+      resposta: cartao(
+        `📊 *Resumo de ${mesNome}*`,
+        [
+          tabela([
+            ["Receitas", dinheiro(r.receitas)],
+            ["Gastos", dinheiro(r.despesas)],
+            ["Guardado", dinheiro(r.guardado)],
+            "---",
+            ["Sobra", dinheiro(r.sobra)],
+          ]),
+          r.receitas > 0 ? `> Gastaram *${pctTexto(r.despesas / r.receitas)}* da renda e guardaram *${pctTexto(r.guardado / r.receitas)}*` : null,
+          "",
+          `🏠 *Custo da casa:* ${dinheiro(r.casa)}${vCasa !== null ? ` _(${vCasa >= 0 ? "▲" : "▼"} ${pctTexto(Math.abs(vCasa))} vs mês anterior)_` : ""}`,
+          top.length ? "" : null,
+          top.length ? "*Onde mais gastaram*" : null,
+          ...top,
+        ],
+        "Detalhes e gráficos no app",
+      ),
     };
   }
 
   if (["contas", "dia 6", "dia6", "pendentes", "boletos"].includes(norm)) {
     const lista = contasDoMes(b, mes, hoje);
     const t = totaisContas(lista);
-    if (!lista.length) return { ok: true, ops: [], resposta: "Nenhuma conta fixa cadastrada ainda. Cadastre em *Dia 6* no app." };
-    const linhas = lista.map((c) => `${c.pago ? "✅" : c.atrasada ? "⚠️" : "⬜"} ${c.conta.nome} — ${dinheiro(c.valor)}`).join("\n");
-    return { ok: true, ops: [], resposta: `*Contas de ${nomeMes(mes)}* (${t.qtdPagas}/${t.qtd} pagas)\n${linhas}\n\nFalta pagar: *${dinheiro(t.falta)}*` };
+    if (!lista.length) {
+      return { ok: true, ops: [], resposta: cartao(`🗓️ *Contas do dia ${b.config.diaPadraoContas}*`, ["Nenhuma conta fixa cadastrada ainda.", "_Cadastre em *Dia 6* no app._"]) };
+    }
+    const linhas = lista.map((c) =>
+      c.pago
+        ? `✅ ~${c.conta.nome}~ · ${dinheiro(c.valor)}`
+        : `${c.atrasada ? "⚠️" : "⬜"} ${c.conta.nome} · ${dinheiro(c.valor)}${c.atrasada ? " _(atrasada)_" : ` _(vence ${dataCurta(c.vencimento)})_`}`,
+    );
+    return {
+      ok: true,
+      ops: [],
+      resposta: cartao(
+        `🗓️ *Contas do dia ${b.config.diaPadraoContas} · ${mesNome}*`,
+        [`${barra(t.qtd ? t.qtdPagas / t.qtd : 0)}  ${t.qtdPagas} de ${t.qtd} pagas`, "", ...linhas, "", t.falta > 0 ? `💸 Falta pagar: *${dinheiro(t.falta)}*` : "🎉 *Tudo pago este mês!*"],
+        "Para marcar como paga: paguei luz",
+      ),
+    };
   }
 
   if (["casamento", "reserva", "fornecedores"].includes(norm)) {
     const p = planoCasamento(b, mes);
+    const dias = b.config.dataCasamento ? diasEntre(hoje, b.config.dataCasamento) : null;
     return {
       ok: true,
       ops: [],
-      resposta:
-        `*Casamento* 💍\n` +
-        `Guardado disponível: ${dinheiro(p.disponivel)}\n` +
-        `Já pago aos fornecedores: ${dinheiro(p.totalPago)}\n` +
-        `Falta pagar: ${dinheiro(p.totalRestante)}\n` +
-        `Dá para quitar agora: ${p.daParaPagar.length} fornecedor(es)\n` +
-        `Falta guardar: *${dinheiro(p.faltaGuardar)}*`,
+      resposta: cartao(
+        `💍 *Casamento${dias !== null && dias >= 0 ? ` · faltam ${dias} dias` : ""}*`,
+        [
+          tabela([
+            ["Contratado", dinheiro(p.totalContratado)],
+            ["Já pago", dinheiro(p.totalPago)],
+            ["Falta pagar", dinheiro(p.totalRestante)],
+            "---",
+            ["Reserva hoje", dinheiro(p.disponivel)],
+            ["Falta guardar", dinheiro(p.faltaGuardar)],
+          ]),
+          p.totalContratado > 0 ? `${barra(p.totalPago / p.totalContratado)}  ${pctTexto(p.totalPago / p.totalContratado)} pago` : null,
+          "",
+          `✅ Dá para pagar agora: *${p.daParaPagar.length}* fornecedor(es) · ${dinheiro(p.valorDaParaPagar)}`,
+          `⏳ Ainda falta dinheiro: *${p.faltam.length}* fornecedor(es)`,
+          p.mesesRestantes > 0 && p.faltaGuardar > 0 ? `> Guardando *${dinheiro(p.precisaPorMes)}/mês* vocês quitam tudo até o casamento` : null,
+        ],
+        "Lista completa em Casamento → Fornecedores",
+      ),
     };
   }
 
@@ -189,13 +221,29 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
       return {
         ok: true,
         ops: opsPagarConta(conta, mesConta, v, data),
-        resposta: `✅ Conta *${conta.nome}* marcada como paga em ${nomeMes(mesConta)} (${dinheiro(v)}).`,
+        resposta: (() => {
+          const pend = contasDoMes(b, mesConta, hoje).filter((c) => !c.pago && c.conta.id !== conta.id);
+          return cartao(
+            "✅ *Conta paga*",
+            [
+              `🗓️ *${conta.nome}* · ${dinheiro(v)}`,
+              `_${nomeMes(mesConta)}_`,
+              "",
+              pend.length ? `Ainda faltam *${pend.length}* conta(s): ${dinheiro(pend.reduce((x, c) => x + c.valor, 0))}` : "🎉 *Todas as contas do mês estão pagas!*",
+            ],
+            "Mande contas para ver a lista",
+          );
+        })(),
       };
     }
   }
 
   if (Number.isNaN(valor)) {
-    return { ok: false, ops: [], resposta: `Não entendi o valor 🤔\n\n${AJUDA_WHATSAPP}` };
+    return {
+      ok: false,
+      ops: [],
+      resposta: cartao("🤔 *Não entendi o valor*", ["Tente assim:", "🛒 `mercado 154,90`", "💰 `recebi 3500 salário`"], "Mande ajuda para ver todos os comandos"),
+    };
   }
 
   let tipo: TipoLancamento = "despesa";
@@ -210,7 +258,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
   });
   const descricao = descPalavras.join(" ");
   const categoria = acharCategoria(b.categorias, tipo, descricao || (tipo === "guardado" ? "reserva" : ""));
-  if (!categoria) return { ok: false, ops: [], resposta: "Nenhuma categoria encontrada para esse tipo. Cadastre em Ajustes." };
+  if (!categoria) return { ok: false, ops: [], resposta: cartao("⚠️ *Sem categoria*", ["Nenhuma categoria encontrada para esse tipo.", "_Cadastre em Ajustes no app._"]) };
 
   const op = opNovoLancamento({
     data,
@@ -221,14 +269,29 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     pessoa,
     origem: "whatsapp",
   });
-  const rotulo = tipo === "receita" ? "Receita" : tipo === "guardado" ? "Guardado" : "Gasto";
+  const rotulo = tipo === "receita" ? "Receita registrada" : tipo === "guardado" ? "Guardado para o casamento" : "Gasto registrado";
+  const icone = tipo === "receita" ? "💰" : tipo === "guardado" ? "🐷" : "✅";
+  // contexto do mês já contando este lançamento
+  const r = resumoMes(b, mesDe(data));
+  const totalTipo = (tipo === "receita" ? r.receitas : tipo === "guardado" ? r.guardado : r.despesas) + valor;
+  const rotuloTotal = tipo === "receita" ? "Receitas" : tipo === "guardado" ? "Guardado" : "Gastos";
+  const sobra = r.sobra + (tipo === "receita" ? valor : -valor);
   return {
     ok: true,
     ops: [op],
-    resposta:
-      `✅ *${rotulo} registrado*\n` +
-      `${categoria.nome} — *${dinheiro(valor)}*\n` +
-      `📝 ${descricao || categoria.nome}\n` +
-      `👤 ${nomePessoa(b, pessoa)} · 📅 ${data.split("-").reverse().join("/")}`,
+    resposta: cartao(
+      `${icone} *${rotulo}*`,
+      [
+        `${emojiCategoria(categoria)} *${categoria.nome}* · *${dinheiro(valor)}*`,
+        descricao && semAcento(descricao) !== semAcento(categoria.nome) ? `> ${descricao}` : null,
+        `👤 ${nomePessoa(b, pessoa)}   📅 ${dataCurta(data)}`,
+        "",
+        tabela([
+          [`${rotuloTotal} de ${nomeMes(mesDe(data)).split(" ")[0].toLowerCase()}`, dinheiro(totalTipo)],
+          ["Sobra do mês", dinheiro(sobra)],
+        ]),
+      ],
+      "Errou? Ajuste em Lançamentos no app",
+    ),
   };
 }

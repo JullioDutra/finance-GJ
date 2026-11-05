@@ -2,6 +2,7 @@
 // e volta para a conversa normal com "encerrar" ou após alguns minutos sem uso.
 
 import { semAcento } from "./format";
+import { cartao } from "./whatsapp-modelos";
 
 export const MINUTOS_SESSAO = 10;
 
@@ -36,11 +37,19 @@ export function novaExpiracao(agora: number): number {
   return agora + MINUTOS_SESSAO * 60_000;
 }
 
-export const MSG_INICIO = `*Modo finanças ativo* 💰
+export const MSG_INICIO = cartao(
+  "👋 *Modo finanças ativo*",
+  [
+    "Pode mandar, uma coisa por mensagem:",
+    "",
+    "🛒 `mercado 154,90`",
+    "💰 `recebi 3500 salário`",
+    "🐷 `guardei 500`",
+    "✅ `paguei luz`",
+    "",
+    "*Consultas:* `resumo` · `contas` · `casamento` · `ajuda`",
+  ],
+  `Para sair mande encerrar · fecha sozinho após ${MINUTOS_SESSAO} min`,
+);
 
-Pode mandar os lançamentos, ex.: \`mercado 154,90\`, \`recebi 3500 salário\`, \`guardei 500\`, \`paguei luz\`.
-Consultas: \`resumo\`, \`contas\`, \`casamento\`, \`ajuda\`.
-
-Para voltar à conversa normal mande *encerrar* (ou fecha sozinho após ${MINUTOS_SESSAO} min sem mensagens).`;
-
-export const MSG_FIM = "Modo finanças encerrado. Voltamos à conversa normal 🙂";
+export const MSG_FIM = cartao("👋 *Até mais!*", ["Modo finanças encerrado.", "Podem conversar normalmente — eu fico quietinho por aqui."], "Para voltar: iniciar finanças");

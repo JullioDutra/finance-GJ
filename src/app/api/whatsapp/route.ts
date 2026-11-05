@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aplicarNoServidor, bancoConfigurado, carregarBanco, gravarInterno, lerInterno } from "@/lib/server/db";
 import { identificarPessoa, processarMensagem } from "@/lib/whatsapp";
 import type { PessoaId } from "@/lib/types";
-import { extrairMensagem, MARCA_BOT, type Recebida } from "@/lib/whatsapp-entrada";
+import { extrairMensagem, type Recebida } from "@/lib/whatsapp-entrada";
 import { comandoSessao, MSG_FIM, MSG_INICIO, novaExpiracao, sessaoAtiva, type SessaoWhatsapp } from "@/lib/whatsapp-sessao";
 
 // Webhook do WhatsApp. Provedores aceitos:
@@ -54,7 +54,7 @@ async function responderEvolution(r: Recebida, texto: string) {
     const res = await fetch(`${servidor}/message/sendText/${encodeURIComponent(instancia)}`, {
       method: "POST",
       headers: { apikey, "Content-Type": "application/json" },
-      body: JSON.stringify({ number: r.responderPara, text: `${MARCA_BOT} ${texto}` }),
+      body: JSON.stringify({ number: r.responderPara, text: texto }),
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) console.error("evolution: falha ao responder", res.status, (await res.text()).slice(0, 300));
