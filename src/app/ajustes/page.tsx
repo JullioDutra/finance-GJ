@@ -29,7 +29,7 @@ function Status() {
     <Card titulo="Onde os dados ficam salvos">
       {modo === "nuvem" ? (
         <p className="text-sm">
-          <Selo tom="ok">☁️ Nuvem (Supabase)</Selo> — vocês dois veem os mesmos dados em qualquer aparelho, e o WhatsApp lança direto aqui.
+          <Selo tom="ok">☁️ Nuvem (banco de dados)</Selo> — vocês dois veem os mesmos dados em qualquer aparelho, e o WhatsApp lança direto aqui.
         </p>
       ) : (
         <div className="space-y-2 text-sm">
@@ -37,11 +37,11 @@ function Status() {
             <Selo tom="warn">📱 Modo local</Selo> — os dados estão salvos só neste navegador. Para sincronizar entre vocês dois e receber mensagens do WhatsApp, configure o banco:
           </p>
           <ol className="list-decimal space-y-1 pl-5 text-muted">
-            <li>Crie um projeto grátis em supabase.com.</li>
-            <li>No SQL Editor, rode o arquivo <code>supabase/schema.sql</code> do projeto.</li>
             <li>
-              Na Vercel, cadastre <code>SUPABASE_URL</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code>, <code>APP_PIN</code> e <code>APP_SECRET</code>.
+              Na Vercel, abra o projeto → <strong>Storage</strong> → <strong>Create Database</strong> → <strong>Neon</strong> → conecte ao projeto (cria o{" "}
+              <code>DATABASE_URL</code> sozinho; a tabela é criada automaticamente).
             </li>
+            <li>Faça um novo deploy (Deployments → ⋯ → Redeploy).</li>
             <li>Antes de trocar, use “Exportar backup” aqui embaixo e depois “Importar backup” já na nuvem para levar o que lançaram.</li>
           </ol>
         </div>
@@ -141,7 +141,7 @@ function WhatsApp() {
             Endereço do webhook para configurar no provedor (Meta Cloud API, Z-API, Evolution, Twilio, n8n…):
           </p>
           <code className="block break-all rounded-xl bg-surface-2 p-2 text-xs">{origem}/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN</code>
-          {modo !== "nuvem" && <p className="text-xs text-warn">⚠️ O WhatsApp só funciona com o banco na nuvem (Supabase) configurado.</p>}
+          {modo !== "nuvem" && <p className="text-xs text-warn">⚠️ O WhatsApp só funciona com o banco de dados (Neon) conectado.</p>}
         </div>
         <form onSubmit={enviar} className="space-y-2">
           <div className="text-xs font-medium text-muted">Simulador — teste (e lance de verdade) como se fosse pelo WhatsApp</div>

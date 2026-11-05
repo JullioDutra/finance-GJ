@@ -25,22 +25,23 @@ Testes da lógica (parser do WhatsApp e cálculos):
 npm run testar
 ```
 
-## Colocar no ar (Supabase + Vercel)
+## Colocar no ar (Vercel + Neon)
 
-1. **Supabase** — crie um projeto grátis em supabase.com → *SQL Editor* → cole e rode [`supabase/schema.sql`](supabase/schema.sql).
-   Em *Project Settings → API* copie a **URL** e a chave **service_role**.
-2. **Vercel** — importe este repositório e cadastre em *Settings → Environment Variables* (modelo em [`.env.example`](.env.example)):
+1. **Vercel** — projeto ligado a este repositório (cada push faz deploy).
+2. **Banco (Neon)** — no projeto da Vercel: **Storage → Create Database → Neon → Connect**.
+   A integração cria a variável `DATABASE_URL` e o app **cria a tabela sozinho** no primeiro acesso. Depois faça **Redeploy**.
+3. **Variáveis** (*Settings → Environment Variables*, modelo em [`.env.example`](.env.example)):
 
    | Variável | Para quê |
    |---|---|
-   | `SUPABASE_URL` | URL do projeto Supabase |
-   | `SUPABASE_SERVICE_ROLE_KEY` | chave service_role (fica só no servidor) |
+   | `DATABASE_URL` | criada pela integração Neon |
    | `APP_PIN` | PIN que vocês dois usam para entrar |
    | `APP_SECRET` | texto aleatório longo |
    | `WHATSAPP_WEBHOOK_TOKEN` | token secreto do webhook |
    | `WHATSAPP_CLOUD_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | opcionais (API oficial da Meta, para o app responder) |
 
-3. Se já lançaram coisas no modo local: em **Ajustes → Exportar backup** antes e **Importar backup** depois.
+   Alternativa ao Neon: Supabase (`SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, rodando antes [`supabase/schema.sql`](supabase/schema.sql)).
+4. Se já lançaram coisas no modo local: em **Ajustes → Exportar backup** antes e **Importar backup** depois.
 
 ## Instalar no celular
 - **iPhone (Safari):** Compartilhar → *Adicionar à Tela de Início*.

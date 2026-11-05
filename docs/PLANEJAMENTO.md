@@ -103,14 +103,14 @@ Resumo financeiro, tabela de fornecedores na ordem de pagamento, tarefas pendent
 ## 3. Técnico
 - **Next.js 16** (App Router) + **Tailwind 4**, todo em português.
 - **PWA**: manifesto, ícones e service worker → instalável no celular (abre em tela cheia, funciona offline para consulta).
-- **Dados**: Supabase (Postgres) numa tabela simples `registros` (coleção + id + JSON).
+- **Dados**: Neon (Postgres, via integração da Vercel) ou Supabase, numa tabela simples `registros` (coleção + id + JSON) criada automaticamente.
   Sem Supabase configurado o app funciona em **modo local** (dados no navegador) — bom para testar.
 - **Acesso**: PIN compartilhado (`APP_PIN`), cookie assinado, válido por 1 ano.
 - Toda escrita passa por "operações" (`src/lib/ops.ts`) usadas igualmente pelo app, pelo WhatsApp e pela importação.
 - Testes da lógica: `npm run testar`.
 
 ## 4. Próximos passos
-1. Configurar Supabase + Vercel (ver README).
+1. Conectar o Neon na Vercel (ver README).
 2. Conectar o provedor de WhatsApp (adicionar a skill de WhatsApp para ajustar ao provedor que vocês usam).
 3. Preencher a data limite de cada fornecedor (define a ordem de pagamento) e o valor da Lapela.
 4. Cadastrar as contas fixas do dia 6 e a reserva que já existe.

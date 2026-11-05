@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   const url = new URL(req.url);
   if (!tokenOk(req, url)) return NextResponse.json({ erro: "Token inválido" }, { status: 401 });
   if (!bancoConfigurado()) {
-    return NextResponse.json({ erro: "Banco de dados não configurado. Configure o Supabase para receber mensagens." }, { status: 503 });
+    return NextResponse.json({ erro: "Banco de dados não configurado. Conecte o banco (Neon ou Supabase) para receber mensagens." }, { status: 503 });
   }
 
   const tipo = req.headers.get("content-type") ?? "";

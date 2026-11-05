@@ -90,7 +90,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       {modo === "local" && (
         <div className="no-print border-b border-warn/30 bg-warn-soft px-4 py-2 text-center text-xs text-warn">
-          {erro || "Modo local: os dados estão salvos só neste aparelho. Configure o Supabase para sincronizar entre vocês dois (veja Ajustes)."}
+          {erro || "Modo local: os dados estão salvos só neste aparelho. Conecte o banco de dados para sincronizar entre vocês dois (veja Ajustes)."}
         </div>
       )}
       {modo === "erro" && <div className="no-print bg-danger-soft px-4 py-2 text-center text-xs text-danger">Erro ao carregar: {erro}</div>}

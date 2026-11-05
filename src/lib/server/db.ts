@@ -1,24 +1,52 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import type { Banco, Colecao } from "../types";
 import { COLECOES } from "../types";
 import { bancoVazio, CONFIG_PADRAO } from "../defaults";
 import type { Op } from "../ops";
 
-let cliente: SupabaseClient | null = null;
+// Dois bancos suportados (o primeiro configurado vence):
+//  1. Neon / Postgres  -> DATABASE_URL (criado automaticamente pela integração Neon da Vercel)
+//  2. Supabase         -> SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+
+const urlPostgres = () => process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
+const usaNeon = () => !!urlPostgres();
+const usaSupabase = () => !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 export function bancoConfigurado(): boolean {
-  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return usaNeon() || usaSupabase();
 }
 
+let cliente: SupabaseClient | null = null;
 function sb(): SupabaseClient {
-  if (!bancoConfigurado()) throw new Error("Supabase não configurado (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).");
   if (!cliente) {
     cliente = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
   }
   return cliente;
+}
+
+let sqlCache: NeonQueryFunction<false, false> | null = null;
+let tabelaPronta: Promise<unknown> | null = null;
+/** Conexão com o Neon. Na primeira vez cria a tabela sozinho (não precisa rodar SQL manualmente). */
+async function pg(): Promise<NeonQueryFunction<false, false>> {
+  if (!sqlCache) sqlCache = neon(urlPostgres());
+  const sql = sqlCache;
+  if (!tabelaPronta) {
+    tabelaPronta = (async () => {
+      await sql.query(
+        "create table if not exists registros (colecao text not null, id text not null, dados jsonb not null, atualizado_em timestamptz not null default now(), primary key (colecao, id))",
+      );
+      await sql.query("create index if not exists registros_colecao_idx on registros (colecao)");
+    })().catch((e) => {
+      tabelaPronta = null;
+      throw e;
+    });
+  }
+  await tabelaPronta;
+  return sql;
 }
 
 const TABELA = "registros";
@@ -30,6 +58,10 @@ interface Linha {
 }
 
 async function lerTudo(): Promise<Linha[]> {
+  if (usaNeon()) {
+    const sql = await pg();
+    return (await sql.query("select colecao, id, dados from registros order by colecao, id")) as Linha[];
+  }
   const todas: Linha[] = [];
   const passo = 1000;
   for (let de = 0; ; de += passo) {
@@ -89,6 +121,22 @@ export async function aplicarNoServidor(ops: Op[]): Promise<void> {
   for (const o of finais.values()) {
     if (o.tipo === "upsert") upserts.push({ colecao: o.colecao, id: o.id, dados: { ...(o.dados as object), id: o.id } });
     else deletes.set(o.colecao, [...(deletes.get(o.colecao) ?? []), o.id]);
+  }
+  if (usaNeon()) {
+    const sql = await pg();
+    for (let i = 0; i < upserts.length; i += 500) {
+      const lote = upserts.slice(i, i + 500);
+      await sql.query(
+        `insert into registros (colecao, id, dados, atualizado_em)
+         select c, i, d::jsonb, now() from unnest($1::text[], $2::text[], $3::text[]) as t(c, i, d)
+         on conflict (colecao, id) do update set dados = excluded.dados, atualizado_em = now()`,
+        [lote.map((u) => u.colecao), lote.map((u) => u.id), lote.map((u) => JSON.stringify(u.dados))],
+      );
+    }
+    for (const [colecao, ids] of deletes) {
+      await sql.query("delete from registros where colecao = $1 and id = any($2::text[])", [colecao, ids]);
+    }
+    return;
   }
   const agora = new Date().toISOString();
   for (let i = 0; i < upserts.length; i += 500) {
