@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
-import { comandoSessao, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
+import { comandoSessao, MSG_INICIO, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
+import { separarCartao } from "../src/lib/whatsapp-modelos";
 import { aplicarOps } from "../src/lib/ops";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
@@ -176,6 +177,26 @@ assert.ok(ev && ev !== "ignorar");
 const bLid = { ...b, config: { ...b.config, whatsappExtraP2: ["123456789012345"] } };
 assert.equal(identificarPessoa(bLid, "123456789012345"), "p2");
 assert.equal(identificarPessoa(bLid, "999456789012345"), null, "não basta bater o final");
+
+// ---------- botões ----------
+// clique em botão (nativeFlow) vira o comando do id
+ev = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { interactiveResponseMessage: { body: { text: "📊 Resumo" }, nativeFlowResponseMessage: { name: "quick_reply", paramsJson: '{"id":"resumo"}' } } } }));
+assert.ok(ev && ev !== "ignorar" && ev.texto === "resumo");
+ev = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { buttonsResponseMessage: { selectedButtonId: "contas" } } }));
+assert.ok(ev && ev !== "ignorar" && ev.texto === "contas");
+// lançamento traz botão Desfazer com o id do lançamento; desfazer remove
+const rl = processarMensagem(b, "padaria 12", "p1", HOJE);
+const idL = (rl.ops[0] as { id: string }).id;
+assert.equal(rl.botoes?.[0].id, `desfazer ${idL}`);
+b = aplicarOps(b, rl.ops);
+const rd = processarMensagem(b, `desfazer ${idL}`, "p1", HOJE);
+assert.ok(rd.ok && rd.ops.length === 1 && rd.ops[0].tipo === "delete");
+b = aplicarOps(b, rd.ops);
+assert.ok(!b.lancamentos.some((l) => l.id === idL));
+// separar cartão em título/corpo/rodapé para os botões
+const partes = separarCartao(MSG_INICIO);
+assert.equal(partes.titulo, "👋 Modo finanças ativo");
+assert.ok(partes.corpo.startsWith("Pode mandar") && partes.rodape.startsWith("Para sair"));
 
 // ---------- modo finanças (iniciar / encerrar) ----------
 assert.equal(comandoSessao("iniciar finanças"), "iniciar");

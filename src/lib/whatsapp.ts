@@ -4,8 +4,8 @@
 import type { Banco, Categoria, PessoaId, TipoLancamento } from "./types";
 import { dataCurta, diasEntre, dinheiro, isoDe, mesDe, nomeMes, parseValor, semAcento, somarMeses } from "./format";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "./calc";
-import { opNovoLancamento, opsPagarConta, type Op } from "./ops";
-import { barra, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela } from "./whatsapp-modelos";
+import { opNovoLancamento, opsDesfazerConta, opsPagarConta, type Op } from "./ops";
+import { barra, BT, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela, type BotaoWhats } from "./whatsapp-modelos";
 
 export const AJUDA_WHATSAPP = MSG_AJUDA;
 
@@ -13,6 +13,8 @@ export interface ResultadoMensagem {
   ops: Op[];
   resposta: string;
   ok: boolean;
+  /** botões de resposta rápida (opcional; o texto sozinho continua completo) */
+  botoes?: BotaoWhats[];
 }
 
 const PALAVRAS_RECEITA = ["recebi", "receita", "entrada", "ganhei", "salario", "+"];
@@ -96,7 +98,28 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
   const mes = mesDe(hoje);
 
   if (!texto || ["ajuda", "help", "menu", "?", "oi", "ola"].includes(norm)) {
-    return { ops: [], resposta: AJUDA_WHATSAPP, ok: true };
+    return { ops: [], resposta: AJUDA_WHATSAPP, ok: true, botoes: [BT.resumo, BT.contas, BT.encerrar] };
+  }
+
+  // desfazer: "desfazer <id>" (botão) ou "desfazer" (último lançamento pelo WhatsApp desta pessoa, hoje)
+  if (norm === "desfazer" || norm.startsWith("desfazer ")) {
+    const id = texto.split(" ")[1];
+    const alvo = id
+      ? b.lancamentos.find((l) => l.id === id)
+      : [...b.lancamentos]
+          .filter((l) => (l.origem === "whatsapp" || l.origem === "conta_fixa") && l.data === hoje && l.pessoa === pessoaPadrao)
+          .sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0];
+    if (!alvo) {
+      return { ok: false, ops: [], resposta: cartao("↩️ *Nada para desfazer*", ["Esse lançamento já foi removido ou não foi feito pelo WhatsApp."], "Ajustes manuais: Lançamentos no app"), botoes: [BT.resumo, BT.encerrar] };
+    }
+    const cat = b.categorias.find((c) => c.id === alvo.categoriaId);
+    const ops: Op[] = alvo.contaId && alvo.mes ? opsDesfazerConta(b, alvo.contaId, alvo.mes) : [{ tipo: "delete", colecao: "lancamentos", id: alvo.id }];
+    return {
+      ok: true,
+      ops,
+      resposta: cartao("↩️ *Lançamento desfeito*", [`~${emojiCategoria(cat)} ${alvo.descricao} · ${dinheiro(alvo.valor)}~`, alvo.contaId ? "_A conta voltou para pendente._" : null], "Pode lançar de novo com o valor certo"),
+      botoes: [BT.resumo, BT.contas, BT.encerrar],
+    };
   }
 
   const mesNome = nomeMes(mes).split(" ")[0].toLowerCase();
@@ -128,6 +151,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
         ],
         "Detalhes e gráficos no app",
       ),
+      botoes: [BT.contas, BT.casamento, BT.encerrar],
     };
   }
 
@@ -135,7 +159,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     const lista = contasDoMes(b, mes, hoje);
     const t = totaisContas(lista);
     if (!lista.length) {
-      return { ok: true, ops: [], resposta: cartao(`🗓️ *Contas do dia ${b.config.diaPadraoContas}*`, ["Nenhuma conta fixa cadastrada ainda.", "_Cadastre em *Dia 6* no app._"]) };
+      return { ok: true, ops: [], resposta: cartao(`🗓️ *Contas do dia ${b.config.diaPadraoContas}*`, ["Nenhuma conta fixa cadastrada ainda.", "_Cadastre em *Dia 6* no app._"]), botoes: [BT.resumo, BT.casamento, BT.encerrar] };
     }
     const linhas = lista.map((c) =>
       c.pago
@@ -150,6 +174,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
         [`${barra(t.qtd ? t.qtdPagas / t.qtd : 0)}  ${t.qtdPagas} de ${t.qtd} pagas`, "", ...linhas, "", t.falta > 0 ? `💸 Falta pagar: *${dinheiro(t.falta)}*` : "🎉 *Tudo pago este mês!*"],
         "Para marcar como paga: paguei luz",
       ),
+      botoes: [BT.resumo, BT.casamento, BT.encerrar],
     };
   }
 
@@ -178,6 +203,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
         ],
         "Lista completa em Casamento → Fornecedores",
       ),
+      botoes: [BT.resumo, BT.contas, BT.encerrar],
     };
   }
 
@@ -234,6 +260,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
             "Mande contas para ver a lista",
           );
         })(),
+        botoes: [BT.desfazer(`lc-${conta.id}-${mesConta}`), BT.contas, BT.encerrar],
       };
     }
   }
@@ -243,6 +270,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
       ok: false,
       ops: [],
       resposta: cartao("🤔 *Não entendi o valor*", ["Tente assim:", "🛒 `mercado 154,90`", "💰 `recebi 3500 salário`"], "Mande ajuda para ver todos os comandos"),
+      botoes: [BT.ajuda, BT.resumo, BT.encerrar],
     };
   }
 
@@ -291,7 +319,8 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
           ["Sobra do mês", dinheiro(sobra)],
         ]),
       ],
-      "Errou? Ajuste em Lançamentos no app",
+      "Errou? Toque em Desfazer",
     ),
+    botoes: [BT.desfazer(op.id), BT.resumo, BT.encerrar],
   };
 }

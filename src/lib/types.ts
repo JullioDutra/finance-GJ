@@ -20,6 +20,8 @@ export interface Configuracoes {
   /** IDs extras do WhatsApp aprovados em Ajustes (ex.: código interno LID) */
   whatsappExtraP1?: string[];
   whatsappExtraP2?: string[];
+  /** mostrar botões de resposta rápida nas mensagens do robô (padrão: sim) */
+  whatsappBotoes?: boolean;
   grupoWhatsapp?: string; // legado (não usado mais: o WhatsApp agora usa "iniciar finanças")
 }
 

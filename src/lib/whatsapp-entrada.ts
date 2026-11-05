@@ -34,12 +34,29 @@ function evolution(body: Json): Recebida | "ignorar" | null {
   const data = obj(Array.isArray(body.data) ? body.data[0] : body.data);
   const key = obj(data.key);
   const m = obj(data.message);
+  // clique em botão: o id do botão é o próprio comando (ex.: "resumo", "desfazer <id>")
+  const idBotao = (() => {
+    const nf = obj(obj(m.interactiveResponseMessage).nativeFlowResponseMessage);
+    try {
+      const params = JSON.parse(str(nf.paramsJson) || "{}") as { id?: unknown };
+      if (typeof params.id === "string" && params.id) return params.id;
+    } catch {
+      /* ignora */
+    }
+    return (
+      str(obj(m.buttonsResponseMessage).selectedButtonId) ||
+      str(obj(m.templateButtonReplyMessage).selectedId) ||
+      str(obj(obj(m.listResponseMessage).singleSelectReply).selectedRowId)
+    );
+  })();
   const texto =
+    idBotao ||
     str(m.conversation) ||
     str(obj(m.extendedTextMessage).text) ||
     str(obj(m.imageMessage).caption) ||
     str(obj(obj(m.ephemeralMessage).message).conversation) ||
-    str(obj(obj(obj(m.ephemeralMessage).message).extendedTextMessage).text);
+    str(obj(obj(obj(m.ephemeralMessage).message).extendedTextMessage).text) ||
+    str(obj(obj(m.interactiveResponseMessage).body).text);
   if (!texto) return "ignorar"; // áudio, figurinha, reação etc.
 
   const remoteJid = str(key.remoteJid);

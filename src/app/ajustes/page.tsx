@@ -347,6 +347,29 @@ function Remetentes() {
   );
 }
 
+function OpcaoBotoes() {
+  const { banco, aplicar } = useDados();
+  const ligado = banco.config.whatsappBotoes !== false;
+  return (
+    <label className="mt-3 flex items-start gap-3 rounded-xl border border-line p-3 text-sm">
+      <input
+        type="checkbox"
+        checked={ligado}
+        onChange={(e) =>
+          aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, whatsappBotoes: e.target.checked } }], e.target.checked ? "Botões ligados" : "Botões desligados")
+        }
+        className="mt-0.5 h-5 w-5 accent-[var(--brand)]"
+      />
+      <span>
+        Mostrar botões nas mensagens do robô <span className="text-muted">(Resumo, Contas, Desfazer…)</span>
+        <span className="block text-xs text-muted">
+          Se no celular de vocês aparecer “mensagem não suportada” ou os botões não surgirem, desligue — o robô volta a mandar só o texto.
+        </span>
+      </span>
+    </label>
+  );
+}
+
 function WhatsApp() {
   const { banco, aplicar, modo } = useDados();
   const [origem] = useState(() => (typeof window !== "undefined" ? window.location.origin : ""));
@@ -370,6 +393,7 @@ function WhatsApp() {
         <code className="rounded bg-surface-2 px-1">encerrar</code> para voltar à conversa normal.
       </p>
       <Remetentes />
+      <OpcaoBotoes />
       <details className="mt-4">
         <summary className="cursor-pointer text-sm text-muted">Ver instruções e simulador</summary>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">

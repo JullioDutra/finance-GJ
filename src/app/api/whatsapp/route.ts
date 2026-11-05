@@ -3,7 +3,8 @@ import { aplicarNoServidor, bancoConfigurado, carregarBanco, gravarInterno, lerI
 import { identificarPessoa, processarMensagem } from "@/lib/whatsapp";
 import type { PessoaId } from "@/lib/types";
 import { extrairMensagem, type Recebida } from "@/lib/whatsapp-entrada";
-import { comandoSessao, MSG_FIM, MSG_INICIO, novaExpiracao, sessaoAtiva, type SessaoWhatsapp } from "@/lib/whatsapp-sessao";
+import { BOTOES_FIM, BOTOES_INICIO, comandoSessao, MSG_FIM, MSG_INICIO, novaExpiracao, sessaoAtiva, type SessaoWhatsapp } from "@/lib/whatsapp-sessao";
+import { separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
 
 // Webhook do WhatsApp. Provedores aceitos:
 //  • Evolution API (principal)          -> responde pela API da Evolution (/message/sendText)
@@ -42,27 +43,50 @@ export async function GET(req: Request) {
   });
 }
 
-async function responderEvolution(r: Recebida, texto: string) {
+function dadosEvolution(r: Recebida) {
   const servidor = (process.env.EVOLUTION_API_URL || r.servidor || "").replace(/\/+$/, "");
   const apikey = process.env.EVOLUTION_API_KEY || r.apikey || "";
   const instancia = process.env.EVOLUTION_INSTANCE || r.instancia || "";
-  if (!servidor || !apikey || !instancia || !r.responderPara) {
-    console.warn("evolution: sem dados para responder", { servidor: !!servidor, apikey: !!apikey, instancia });
-    return false;
-  }
+  return servidor && apikey && instancia && r.responderPara ? { servidor, apikey, instancia } : null;
+}
+
+async function postEvolution(caminho: string, apikey: string, corpo: unknown): Promise<boolean> {
   try {
-    const res = await fetch(`${servidor}/message/sendText/${encodeURIComponent(instancia)}`, {
+    const res = await fetch(caminho, {
       method: "POST",
       headers: { apikey, "Content-Type": "application/json" },
-      body: JSON.stringify({ number: r.responderPara, text: texto }),
+      body: JSON.stringify(corpo),
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) console.error("evolution: falha ao responder", res.status, (await res.text()).slice(0, 300));
+    if (!res.ok) console.error("evolution: falha ao responder", caminho.split("/").slice(-2, -1)[0], res.status, (await res.text()).slice(0, 300));
     return res.ok;
   } catch (e) {
     console.error("evolution: erro ao responder", e);
     return false;
   }
+}
+
+/** Responde pela Evolution: com botões (se houver e estiverem ligados) e, se falhar, em texto puro. */
+async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhats[], usarBotoes = true) {
+  const d = dadosEvolution(r);
+  if (!d) {
+    console.warn("evolution: sem dados para responder");
+    return false;
+  }
+  const base = `${d.servidor}/message`;
+  const inst = encodeURIComponent(d.instancia);
+  if (usarBotoes && botoes?.length) {
+    const { titulo, corpo, rodape } = separarCartao(texto);
+    const ok = await postEvolution(`${base}/sendButtons/${inst}`, d.apikey, {
+      number: r.responderPara,
+      title: titulo,
+      description: corpo,
+      footer: rodape || "G&J Finanças",
+      buttons: botoes.slice(0, 3).map((bt) => ({ type: "reply", displayText: bt.texto, id: bt.id })),
+    });
+    if (ok) return true;
+  }
+  return postEvolution(`${base}/sendText/${inst}`, d.apikey, { number: r.responderPara, text: texto });
 }
 
 async function responderMeta(para: string, texto: string) {
@@ -133,13 +157,13 @@ export async function POST(req: Request) {
       const comando = comandoSessao(recebida.texto);
       if (comando === "iniciar") {
         await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
-        await responderEvolution(recebida, MSG_INICIO);
+        await responderEvolution(recebida, MSG_INICIO, BOTOES_INICIO, banco.config.whatsappBotoes !== false);
         return NextResponse.json({ ok: true, sessao: "iniciada" });
       }
       if (!sessaoAtiva(sessao, agora)) return NextResponse.json({ ok: true, ignorado: "fora do modo finanças" });
       if (comando === "encerrar") {
         await gravarInterno("_whatsapp_sessoes", conversa, null);
-        await responderEvolution(recebida, MSG_FIM);
+        await responderEvolution(recebida, MSG_FIM, BOTOES_FIM, banco.config.whatsappBotoes !== false);
         return NextResponse.json({ ok: true, sessao: "encerrada" });
       }
       await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
@@ -155,7 +179,7 @@ export async function POST(req: Request) {
     }
     let respondido: boolean | undefined;
     if (recebida.provedor === "meta") await responderMeta(recebida.de, r.resposta);
-    if (recebida.provedor === "evolution") respondido = await responderEvolution(recebida, r.resposta);
+    if (recebida.provedor === "evolution") respondido = await responderEvolution(recebida, r.resposta, r.botoes, banco.config.whatsappBotoes !== false);
     return NextResponse.json({ ok: r.ok, pessoa, resposta: r.resposta, respondido });
   } catch (e) {
     console.error("whatsapp", e);

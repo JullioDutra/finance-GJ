@@ -3,7 +3,8 @@ import { writeFileSync } from "node:fs";
 import { bancoVazio } from "../src/lib/defaults";
 import { aplicarOps } from "../src/lib/ops";
 import { processarMensagem } from "../src/lib/whatsapp";
-import { MSG_FIM, MSG_INICIO } from "../src/lib/whatsapp-sessao";
+import { BOTOES_FIM, BOTOES_INICIO, MSG_FIM, MSG_INICIO } from "../src/lib/whatsapp-sessao";
+import { separarCartao, type BotaoWhats } from "../src/lib/whatsapp-modelos";
 import type { Banco } from "../src/lib/types";
 
 const HOJE = "2026-11-05";
@@ -25,21 +26,21 @@ b = aplicarOps(b, [
   { tipo: "upsert", colecao: "pagamentosContas", id: "c1_2026-11", dados: { id: "c1_2026-11", contaId: "c1", mes: "2026-11", pago: true, valor: 1800, pagoEm: "2026-11-03" } },
 ]);
 
-const conversa: [string, string][] = [];
+const conversa: [string, string, BotaoWhats[]?][] = [];
 const enviar = (t: string) => {
   conversa.push(["eu", t]);
   const r = processarMensagem(b, t, "p2", HOJE);
   b = aplicarOps(b, r.ops);
-  conversa.push(["robo", r.resposta]);
+  conversa.push(["robo", r.resposta, r.botoes]);
 };
-conversa.push(["eu", "iniciar finanças"], ["robo", MSG_INICIO]);
+conversa.push(["eu", "iniciar finanças"], ["robo", MSG_INICIO, BOTOES_INICIO]);
 enviar("mercado 154,90 feira do mês");
 enviar("paguei luz");
 enviar("resumo");
 enviar("contas");
 enviar("casamento");
 enviar("mercado");
-conversa.push(["eu", "encerrar"], ["robo", MSG_FIM]);
+conversa.push(["eu", "encerrar"], ["robo", MSG_FIM, BOTOES_FIM]);
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 function wa(t: string): string {
@@ -68,5 +69,15 @@ body{margin:0;background:#efeae2;font:15px/1.4 -apple-system,"Segoe UI",Roboto,H
 pre{font:13px/1.35 ui-monospace,Menlo,Consolas,monospace;margin:4px 0;white-space:pre}
 code{font:13px ui-monospace,Menlo,monospace;background:rgba(0,0,0,.06);padding:1px 4px;border-radius:4px}
 .q{display:inline-block;border-left:4px solid #06cf9c;padding-left:8px;color:#54656f}
-</style><div class="top">G&amp;J Finanças</div><div class="chat">${conversa.map(([q, t]) => `<div class="m ${q}">${wa(t)}</div>`).join("")}</div>`;
+.wrap{max-width:86%;margin:6px 0}.wrap .m{max-width:none;margin:0;border-radius:8px 8px 0 0}
+.ft{color:#667781;font-size:13px;margin-top:6px}
+.bt{background:#fff;border-top:1px solid #e9edef;text-align:center;color:#027eb5;padding:9px;font-weight:500;box-shadow:0 1px .5px rgba(0,0,0,.13)}
+.bt:last-child{border-radius:0 0 8px 8px}
+</style><div class="top">G&amp;J Finanças</div><div class="chat">${conversa
+  .map(([q, t, bts]) => {
+    if (q !== "robo" || !bts?.length) return `<div class="m ${q}">${wa(t)}</div>`;
+    const c = separarCartao(t);
+    return `<div class="wrap"><div class="m robo"><b>${esc(c.titulo)}</b><br><br>${wa(c.corpo)}<div class="ft">${esc(c.rodape || "G&J Finanças")}</div></div>${bts.map((x) => `<div class="bt">${esc(x.texto)}</div>`).join("")}</div>`;
+  })
+  .join("")}</div>`;
 writeFileSync(process.argv[2] ?? "previa-whatsapp.html", html);

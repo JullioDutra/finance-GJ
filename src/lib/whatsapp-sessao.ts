@@ -2,7 +2,7 @@
 // e volta para a conversa normal com "encerrar" ou após alguns minutos sem uso.
 
 import { semAcento } from "./format";
-import { cartao } from "./whatsapp-modelos";
+import { BT, cartao } from "./whatsapp-modelos";
 
 export const MINUTOS_SESSAO = 10;
 
@@ -53,3 +53,6 @@ export const MSG_INICIO = cartao(
 );
 
 export const MSG_FIM = cartao("👋 *Até mais!*", ["Modo finanças encerrado.", "Podem conversar normalmente — eu fico quietinho por aqui."], "Para voltar: iniciar finanças");
+
+export const BOTOES_INICIO = [BT.resumo, BT.contas, BT.casamento];
+export const BOTOES_FIM = [BT.iniciar];

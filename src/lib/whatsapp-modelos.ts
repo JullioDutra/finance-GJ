@@ -78,3 +78,34 @@ export const MSG_AJUDA = cartao(
   ],
   "Para sair do modo finanças mande encerrar",
 );
+
+// ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
+export interface BotaoWhats {
+  id: string; // comando enviado de volta quando clicado
+  texto: string; // até ~20 caracteres
+}
+
+export const BT = {
+  resumo: { id: "resumo", texto: "📊 Resumo" },
+  contas: { id: "contas", texto: "🗓️ Contas" },
+  casamento: { id: "casamento", texto: "💍 Casamento" },
+  ajuda: { id: "ajuda", texto: "📖 Ajuda" },
+  encerrar: { id: "encerrar", texto: "👋 Encerrar" },
+  iniciar: { id: "iniciar finanças", texto: "💰 Iniciar finanças" },
+  desfazer: (lancamentoId: string): BotaoWhats => ({ id: `desfazer ${lancamentoId}`, texto: "↩️ Desfazer" }),
+} as const;
+
+/** Separa um cartão em título / corpo / rodapé (formato usado pelos botões). */
+export function separarCartao(texto: string): { titulo: string; corpo: string; rodape: string } {
+  const linhas = texto.split("\n");
+  const titulo = (linhas[0] ?? "").replace(/^\*|\*$/g, "").replace(/\*/g, "");
+  let fim = linhas.length;
+  let rodape = "";
+  const ult = linhas[linhas.length - 1] ?? "";
+  if (linhas.length >= 3 && linhas[linhas.length - 2] === DIVISOR && /^_.*_$/.test(ult)) {
+    rodape = ult.slice(1, -1);
+    fim = linhas.length - 2;
+  }
+  const inicio = linhas[1] === DIVISOR ? 2 : 1;
+  return { titulo, corpo: linhas.slice(inicio, fim).join("\n").trim(), rodape };
+}
