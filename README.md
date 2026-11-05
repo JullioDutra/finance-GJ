@@ -60,8 +60,7 @@ npm run testar
    ```
 2. Eventos: só **MESSAGES_UPSERT** (Webhook by Events e Base64 desligados — se ligar “by events”, também funciona).
 3. Cadastrem os números de vocês em **Ajustes**. O robô **só atende esses dois números** — mensagens de qualquer outro número são ignoradas, sem resposta.
-4. Mandem mensagens para o número da instância. As respostas do robô começam com 🤖.
-5. Para usar num grupo, mandem `ativar grupo` dentro dele. Os outros grupos são ignorados.
+4. Para lançar, mandem **`iniciar finanças`** (o robô confirma). A partir daí tudo vira lançamento/consulta até mandarem **`encerrar`** ou ficarem 10 min sem mensagens. Fora do modo finanças o robô fica em silêncio (conversa normal), em conversas e grupos.
 
 O app responde usando o `server_url`, `instance` e `apikey` que a própria Evolution envia no webhook.
 Se preferir fixar, cadastre na Vercel `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_INSTANCE`.

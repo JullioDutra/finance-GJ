@@ -278,15 +278,13 @@ function WhatsApp() {
                 <strong>Antes de testar</strong>, preencham os WhatsApps de vocês em “Casal e casamento” acima — o robô <strong>só responde vocês dois</strong>{" "}
                 (mensagens de outras pessoas são ignoradas).
               </li>
-              <li>Mandem mensagem para o número conectado na instância. O robô responde confirmando.</li>
               <li>
-                Para usar num <strong>grupo</strong> (ex.: “Finanças G&J” com vocês e o número da instância), mandem <code>ativar grupo</code> nele. Outros grupos
-                são ignorados.
+                Para lançar, mandem <code>iniciar finanças</code>. O robô confirma e passa a ler a conversa; <code>encerrar</code> (ou 10 min sem mensagens)
+                volta para a conversa normal. Fora disso ele fica em silêncio — vale para conversas e grupos.
               </li>
               <li>Se o número da instância for de um de vocês, dá para lançar na conversa “comigo mesmo”.</li>
             </ol>
           </details>
-          {banco.config.grupoWhatsapp && <p className="text-xs text-ok">Grupo do WhatsApp ativado.</p>}
           {modo !== "nuvem" && <p className="text-xs text-warn">O WhatsApp só funciona com o banco de dados conectado.</p>}
         </div>
         <form onSubmit={enviar} className="space-y-2">

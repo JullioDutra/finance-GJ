@@ -8,6 +8,8 @@ import { opNovoLancamento, opsPagarConta, type Op } from "./ops";
 
 export const AJUDA_WHATSAPP = `*Como lançar pelo WhatsApp* 💬
 
+*Começar:* \`iniciar finanças\` · *Sair:* \`encerrar\`
+
 *Gasto:* \`mercado 154,90\` ou \`gastei 45 uber\`
 *Receita:* \`recebi 3500 salário\` ou \`+3500 salário\`
 *Guardar p/ casamento:* \`guardei 500\`

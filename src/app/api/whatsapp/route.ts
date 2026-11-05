@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { aplicarNoServidor, bancoConfigurado, carregarBanco } from "@/lib/server/db";
+import { aplicarNoServidor, bancoConfigurado, carregarBanco, gravarInterno, lerInterno } from "@/lib/server/db";
 import { identificarPessoa, processarMensagem } from "@/lib/whatsapp";
-import { semAcento } from "@/lib/format";
 import type { PessoaId } from "@/lib/types";
 import { extrairMensagem, MARCA_BOT, type Recebida } from "@/lib/whatsapp-entrada";
+import { comandoSessao, MSG_FIM, MSG_INICIO, novaExpiracao, sessaoAtiva, type SessaoWhatsapp } from "@/lib/whatsapp-sessao";
 
 // Webhook do WhatsApp. Provedores aceitos:
 //  • Evolution API (principal)          -> responde pela API da Evolution (/message/sendText)
@@ -104,22 +104,31 @@ export async function POST(req: Request) {
     let pessoa: PessoaId = conhecida ?? "casal";
 
     if (recebida.provedor === "evolution") {
-      // O número da Evolution pode ser o WhatsApp pessoal de vocês: só atende vocês dois
-      // (ou a conversa "comigo mesmo") e só o grupo que foi ativado.
+      // O número da Evolution pode ser o WhatsApp pessoal de vocês: só atende os números
+      // cadastrados (ou a conversa "comigo mesmo").
       if (!conhecida && !recebida.propria) {
         console.info(`whatsapp: ignorado número não cadastrado (final ${recebida.de.slice(-4) || "?"})`);
         return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
       }
       if (recebida.propria && !conhecida) pessoa = identificarPessoa(banco, recebida.de) ?? "casal";
-      if (recebida.grupo) {
-        const jid = recebida.responderPara ?? "";
-        if (semAcento(recebida.texto.trim()) === "ativar grupo") {
-          await aplicarNoServidor([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, grupoWhatsapp: jid } }]);
-          await responderEvolution(recebida, "✅ Grupo ativado! A partir de agora os lançamentos mandados aqui caem direto no sistema. Mande *ajuda* para ver os comandos.");
-          return NextResponse.json({ ok: true, grupoAtivado: jid });
-        }
-        if (jid !== banco.config.grupoWhatsapp) return NextResponse.json({ ok: true, ignorado: "grupo não ativado" });
+
+      // Modo finanças: só lê a conversa depois de "iniciar finanças"; fora disso é conversa normal.
+      const conversa = recebida.responderPara || recebida.de;
+      const agora = Date.now();
+      const sessao = (await lerInterno<SessaoWhatsapp>("_whatsapp_sessoes")).find((x) => x.id === conversa);
+      const comando = comandoSessao(recebida.texto);
+      if (comando === "iniciar") {
+        await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
+        await responderEvolution(recebida, MSG_INICIO);
+        return NextResponse.json({ ok: true, sessao: "iniciada" });
       }
+      if (!sessaoAtiva(sessao, agora)) return NextResponse.json({ ok: true, ignorado: "fora do modo finanças" });
+      if (comando === "encerrar") {
+        await gravarInterno("_whatsapp_sessoes", conversa, null);
+        await responderEvolution(recebida, MSG_FIM);
+        return NextResponse.json({ ok: true, sessao: "encerrada" });
+      }
+      await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
     }
 
     const r = processarMensagem(banco, recebida.texto, pessoa, hojeSP());

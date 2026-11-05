@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
+import { comandoSessao, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
 import { aplicarOps } from "../src/lib/ops";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
@@ -168,6 +169,19 @@ assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.n
 // evento em maiúsculas (MESSAGES_UPSERT) também vale
 ev = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { conversation: "resumo" } }, { event: "MESSAGES_UPSERT" }));
 assert.ok(ev && ev !== "ignorar");
+
+// ---------- modo finanças (iniciar / encerrar) ----------
+assert.equal(comandoSessao("iniciar finanças"), "iniciar");
+assert.equal(comandoSessao("  Iniciar Finanças!  "), "iniciar");
+assert.equal(comandoSessao("iniciar financas"), "iniciar");
+assert.equal(comandoSessao("vou iniciar finanças amanhã"), null, "só a mensagem exata");
+assert.equal(comandoSessao("Encerrar"), "encerrar");
+assert.equal(comandoSessao("sair"), "encerrar");
+assert.equal(comandoSessao("mercado 10"), null);
+const t0 = 1_000_000;
+assert.equal(sessaoAtiva(undefined, t0), false);
+assert.equal(sessaoAtiva({ id: "x", expira: novaExpiracao(t0) }, t0 + 9 * 60_000), true);
+assert.equal(sessaoAtiva({ id: "x", expira: novaExpiracao(t0) }, t0 + 11 * 60_000), false);
 
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);
