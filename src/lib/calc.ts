@@ -151,7 +151,7 @@ export interface FornecedorCalc {
   pago: number;
   restante: number;
   quitado: boolean;
-  situacao: "quitado" | "da_para_pagar" | "falta";
+  situacao: "quitado" | "da_para_pagar" | "falta" | "sem_valor";
   falta: number; // quanto falta na reserva para conseguir quitar (se situacao = falta)
   saldoAntes: number; // saldo disponível no momento da alocação
 }
@@ -186,6 +186,7 @@ export function planoCasamento(b: Banco, hoje = mesAtual()) {
     .sort((a, b2) => ordemFornecedor(a.f, b2.f))
     .map(({ f, pago, restante }) => {
       const saldoAntes = r2(saldo);
+      if (f.valorTotal <= 0 && pago <= 0) return { fornecedor: f, pago, restante: 0, quitado: false, situacao: "sem_valor", falta: 0, saldoAntes };
       if (restante <= 0) return { fornecedor: f, pago, restante, quitado: true, situacao: "quitado", falta: 0, saldoAntes };
       if (restante <= saldo + 0.001) {
         saldo -= restante;
@@ -196,6 +197,7 @@ export function planoCasamento(b: Banco, hoje = mesAtual()) {
 
   const daParaPagar = calc.filter((c) => c.situacao === "da_para_pagar");
   const faltam = calc.filter((c) => c.situacao === "falta");
+  const semValor = calc.filter((c) => c.situacao === "sem_valor");
   const orcamento = b.config.orcamentoCasamento > 0 ? b.config.orcamentoCasamento : totalContratado;
   const faltaGuardar = r2(Math.max(0, totalRestante - Math.max(0, disponivel)));
 
@@ -223,6 +225,7 @@ export function planoCasamento(b: Banco, hoje = mesAtual()) {
     fornecedores: calc,
     daParaPagar,
     faltam,
+    semValor,
     valorDaParaPagar: r2(daParaPagar.reduce((s, c) => s + c.restante, 0)),
     mesesRestantes,
     mediaGuardada,

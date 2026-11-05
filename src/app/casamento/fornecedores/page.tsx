@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useDados } from "@/lib/store";
 import { planoCasamento, type FornecedorCalc } from "@/lib/calc";
 import { dataBR, dinheiro, hojeISO, mesAtual, novoId, parseValor } from "@/lib/format";
-import { CATEGORIAS_FORNECEDOR } from "@/lib/defaults";
+import { CATEGORIAS_FORNECEDOR, orcamentoInicial } from "@/lib/defaults";
+import { lerPlanilha } from "@/lib/planilha";
 import type { Op } from "@/lib/ops";
 import type { Fornecedor, PagamentoFornecedor } from "@/lib/types";
 import { Barra, Botao, Campo, cx, Input, Modal, Select, Selo, Stat, Textarea, Titulo, Vazio } from "@/components/ui";
@@ -16,6 +17,18 @@ export default function Fornecedores() {
   const [importar, setImportar] = useState(false);
   const p = planoCasamento(banco, mesAtual());
   const quitados = p.fornecedores.filter((f) => f.situacao === "quitado");
+  const temPlanilha = banco.fornecedores.some((f) => f.id.startsWith("forn-"));
+  const { aplicar } = useDados();
+  async function carregarPlanilha() {
+    const { fornecedores, pagamentos } = orcamentoInicial();
+    await aplicar(
+      [
+        ...fornecedores.map((f): Op => ({ tipo: "upsert", colecao: "fornecedores", id: f.id, dados: f })),
+        ...pagamentos.map((pg): Op => ({ tipo: "upsert", colecao: "pagamentosFornecedores", id: pg.id, dados: pg })),
+      ],
+      `${fornecedores.length} orçamentos carregados`,
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -45,6 +58,13 @@ export default function Fornecedores() {
         />
       </div>
 
+      {!temPlanilha && (
+        <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/30 bg-brand-soft p-3 text-sm">
+          <span>📄 Carregar os 15 itens da planilha “Orçamentos” (Decoração, Fotos/Vídeo, Dia da Noiva…)</span>
+          <Botao pequeno onClick={carregarPlanilha}>Carregar orçamentos</Botao>
+        </div>
+      )}
+
       <p className="text-xs text-muted">
         Como funciona: os fornecedores são ordenados pelo vencimento (e prioridade). O sistema vai “reservando” o dinheiro disponível para cada um; se o que falta pagar cabe no saldo,
         ele aparece em <strong>Já dá para pagar</strong>. Para registrar o guardado do mês, lance um <strong>“Guardar”</strong> nas Finanças (ou mande <code>guardei 500</code> no WhatsApp).
@@ -67,6 +87,9 @@ export default function Fornecedores() {
         <>
           <Secao titulo={`✅ Já dá para pagar com o que temos (${p.daParaPagar.length})`} tom="ok" itens={p.daParaPagar} onPagar={setPagar} onEditar={setEditar} vazio="Nenhum fornecedor cabe na reserva atual." />
           <Secao titulo={`⏳ Ainda falta dinheiro (${p.faltam.length})`} tom="warn" itens={p.faltam} onPagar={setPagar} onEditar={setEditar} vazio="Nenhum — a reserva cobre todos! 🎉" />
+          {p.semValor.length > 0 && (
+            <Secao titulo={`📝 Sem valor definido (${p.semValor.length})`} tom="neutro" itens={p.semValor} onPagar={setPagar} onEditar={setEditar} vazio="" />
+          )}
           {quitados.length > 0 && <Secao titulo={`🎉 Quitados (${quitados.length})`} tom="neutro" itens={quitados} onPagar={setPagar} onEditar={setEditar} vazio="" />}
         </>
       )}
@@ -153,6 +176,7 @@ function Secao({
                     </span>
                   )}
                   {c.situacao === "da_para_pagar" && <span className="text-ok">reserva cobre ✔</span>}
+                  {c.situacao === "sem_valor" && <span className="text-muted">toque em Editar para informar o valor</span>}
                 </div>
                 {f.observacao && <p className="mt-2 text-xs text-muted">📝 {f.observacao}</p>}
                 <div className="no-print mt-3 flex gap-2">
@@ -323,32 +347,10 @@ function FormPagamento({ c, aoTerminar }: { c: FornecedorCalc; aoTerminar: () =>
   );
 }
 
-function dataPlanilha(s: string): string {
-  const t = s.trim();
-  let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
-  if (m) {
-    const ano = m[3].length === 2 ? `20${m[3]}` : m[3];
-    return `${ano}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  }
-  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : "";
-}
-
 function Importar({ aoTerminar }: { aoTerminar: () => void }) {
   const { aplicar } = useDados();
   const [texto, setTexto] = useState("");
-  const linhas = texto
-    .split(/\r?\n/)
-    .map((l) => l.split(l.includes("\t") ? "\t" : ";").map((c) => c.trim().replace(/^"|"$/g, "")))
-    .filter((cols) => cols[0] && !/^(nome|fornecedor)$/i.test(cols[0]));
-  const previa = linhas.map((c) => ({
-    nome: c[0],
-    categoria: c[1] || "Outros",
-    total: parseValor(c[2] ?? "") || 0,
-    pago: parseValor(c[3] ?? "") || 0,
-    vencimento: dataPlanilha(c[4] ?? ""),
-    contato: c[5] ?? "",
-  }));
+  const previa = lerPlanilha(texto);
 
   async function confirmar() {
     const ops: Op[] = [];
@@ -368,11 +370,11 @@ function Importar({ aoTerminar }: { aoTerminar: () => void }) {
   return (
     <div className="space-y-3 text-sm">
       <p className="text-muted">
-        Copie as linhas da planilha (Excel / Google Sheets) e cole abaixo. Ordem das colunas:
-        <br />
-        <strong className="text-ink">Nome · Categoria · Valor total · Valor já pago · Quitar até (dd/mm/aaaa) · Contato</strong>
+        Copie a tabela da planilha (Excel / Google Sheets) <strong className="text-ink">incluindo a linha de títulos</strong> e cole abaixo. As colunas são
+        reconhecidas pelo nome: <strong className="text-ink">Categoria · Fornecedor · Valor Total · Pago</strong> (opcionais: Vencimento, Contato; “Restante” é calculado
+        sozinho).
       </p>
-      <Textarea rows={7} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={"Buffet Sabor\tBuffet\t25.000,00\t5.000,00\t10/05/2027\t(11) 99999-0000"} className="font-mono text-xs" />
+      <Textarea rows={7} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder={"Categoria\tFornecedor\tValor Total\tPago\tRestante\nDecoração\tGM Flores\tR$4 500,00\tR$1 350,00\tR$3 150,00"} className="font-mono text-xs" />
       <p className="text-xs text-muted">O “valor já pago” entra como pagamento feito fora da reserva (não desconta do que vocês têm guardado hoje).</p>
       {previa.length > 0 && (
         <div className="max-h-56 overflow-auto rounded-xl border border-line">

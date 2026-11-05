@@ -1,6 +1,7 @@
 // Testes rápidos da lógica (parser do WhatsApp e cálculos). Rodar: npm run testar
 import assert from "node:assert/strict";
 import { bancoVazio } from "../src/lib/defaults";
+import { lerPlanilha } from "../src/lib/planilha";
 import { aplicarOps } from "../src/lib/ops";
 import { processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
@@ -8,7 +9,7 @@ import { parseValor } from "../src/lib/format";
 import type { Banco, Lancamento } from "../src/lib/types";
 
 const HOJE = "2026-11-05";
-let b: Banco = bancoVazio();
+let b: Banco = { ...bancoVazio(), fornecedores: [], pagamentosFornecedores: [] };
 b.config.telefoneP1 = "(11) 99999-1111";
 b.config.telefoneP2 = "11 98888-2222";
 
@@ -104,6 +105,33 @@ assert.equal(p.faltaGuardar, 13500);
 assert.equal(p.mesesRestantes, 12);
 assert.equal(p.projecaoNoCasamento, 9500 + 2000 * 12);
 assert.equal(p.vaiDar, true);
+
+// planilha "Orçamentos" (copiada do Google Sheets, com linhas vazias e coluna Restante)
+const colada = [
+  "Categoria\tFornecedor\tValor Total\tPago\tRestante",
+  "Decoração\tGM Flores\tR$4 500,00\tR$1 350,00\tR$3 150,00",
+  "Cartório\t\tR$800,00\t\t",
+  "Paróquia\tSão José Operario\tR$1 300,00\tR$200,00\tR$1 100,00",
+  "Lapela\t\t\t\t",
+  "\t\t\t\t",
+].join("\n");
+const lidas = lerPlanilha(colada);
+assert.equal(lidas.length, 4);
+assert.deepEqual(lidas[0], { nome: "GM Flores", categoria: "Decoração", total: 4500, pago: 1350, vencimento: "", contato: "" });
+assert.equal(lidas[1].nome, "Cartório"); assert.equal(lidas[1].total, 800); assert.equal(lidas[1].pago, 0);
+assert.equal(lidas[3].total, 0);
+
+// orçamento inicial (vem pré-carregado)
+const ini = bancoVazio();
+assert.equal(ini.config.nomeP2, "Gabriella");
+const pi = planoCasamento(ini, "2026-11");
+assert.equal(ini.fornecedores.length, 15);
+assert.equal(pi.totalContratado, 26350);
+assert.equal(pi.totalPago, 11575);
+assert.equal(pi.totalRestante, 14775);
+assert.equal(pi.disponivel, 0, "pagos da planilha não descontam da reserva");
+assert.equal(pi.semValor.length, 1); // Lapela
+assert.equal(pi.faltaGuardar, 14775);
 
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);

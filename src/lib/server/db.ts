@@ -46,16 +46,17 @@ async function lerTudo(): Promise<Linha[]> {
   return todas;
 }
 
-/** Carrega o banco inteiro. Na primeira vez, grava as categorias e tarefas padrão. */
+/** Carrega o banco inteiro. Na primeira vez, grava categorias, tarefas e orçamentos padrão. */
 export async function carregarBanco(): Promise<Banco> {
   const linhas = await lerTudo();
   if (!linhas.some((l) => l.colecao === "config")) {
     const inicial = bancoVazio();
-    await aplicarNoServidor([
-      { tipo: "upsert", colecao: "config", id: "config", dados: inicial.config },
-      ...inicial.categorias.map((c) => ({ tipo: "upsert" as const, colecao: "categorias" as const, id: c.id, dados: c })),
-      ...inicial.tarefas.map((t) => ({ tipo: "upsert" as const, colecao: "tarefas" as const, id: t.id, dados: t })),
-    ]);
+    const ops: Op[] = [{ tipo: "upsert", colecao: "config", id: "config", dados: inicial.config }];
+    for (const col of COLECOES) {
+      if (col === "config") continue;
+      for (const r of inicial[col] as { id: string }[]) ops.push({ tipo: "upsert", colecao: col, id: r.id, dados: r });
+    }
+    await aplicarNoServidor(ops);
     return inicial;
   }
   const b: Banco = {

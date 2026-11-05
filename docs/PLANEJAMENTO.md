@@ -66,8 +66,10 @@ Quem mandou é descoberto pelo número cadastrado em Ajustes. Há um **simulador
 ### 2.1 Fornecedores (`/casamento/fornecedores`)
 - Cadastro: nome, categoria, contato, valor total, data limite para quitar, prioridade e observação.
 - Registro de **pagamentos** (entrada, parcelas) com histórico.
-- **Importação da planilha**: copiar as linhas do Excel/Google Sheets e colar
-  (`Nome · Categoria · Valor total · Valor já pago · Quitar até · Contato`).
+- **Orçamentos já carregados** da planilha "Orçamentos" (15 itens: total R$ 26.350, pago R$ 11.575, restante R$ 14.775).
+  O que já foi pago entra como pago *fora da reserva* (foi antes do app). Itens sem valor (ex.: Lapela) ficam em "Sem valor definido".
+- **Importação da planilha**: copiar a tabela do Excel/Google Sheets com a linha de títulos e colar —
+  as colunas são reconhecidas pelo nome (`Categoria · Fornecedor · Valor Total · Pago`, opcionais `Vencimento`, `Contato`; `Restante` é calculado).
 - **Cálculo do que já dá para pagar:**
   1. `Reserva disponível = já tinham guardado + todos os "Guardar" − pagamentos feitos com a reserva`
   2. Os fornecedores são ordenados pelo vencimento (depois prioridade).
@@ -110,5 +112,5 @@ Resumo financeiro, tabela de fornecedores na ordem de pagamento, tarefas pendent
 ## 4. Próximos passos
 1. Configurar Supabase + Vercel (ver README).
 2. Conectar o provedor de WhatsApp (adicionar a skill de WhatsApp para ajustar ao provedor que vocês usam).
-3. Importar a planilha de fornecedores do casamento.
+3. Preencher a data limite de cada fornecedor (define a ordem de pagamento) e o valor da Lapela.
 4. Cadastrar as contas fixas do dia 6 e a reserva que já existe.

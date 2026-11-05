@@ -1,9 +1,9 @@
-import type { Banco, Categoria, Configuracoes, Tarefa } from "./types";
+import type { Banco, Categoria, Configuracoes, Fornecedor, PagamentoFornecedor, Tarefa } from "./types";
 
 export const CONFIG_PADRAO: Configuracoes = {
   id: "config",
   nomeP1: "Jullio",
-  nomeP2: "Noiva",
+  nomeP2: "Gabriella",
   dataCasamento: "",
   orcamentoCasamento: 0,
   reservaInicial: 0,
@@ -75,6 +75,40 @@ export const TAREFAS_PADRAO: Tarefa[] = [
   t("tf-20", "Lua de mel", "Pós-casamento"),
 ];
 
+// Orçamentos da planilha do casal ("Orçamentos.pdf"): categoria, fornecedor, total, já pago.
+// Quando não há fornecedor definido, o nome usa a categoria.
+const PLANILHA_ORCAMENTOS: [string, string, number, number][] = [
+  ["Decoração", "GM Flores", 4500, 1350],
+  ["Fotos / Vídeo", "Ravo Fotos", 6800, 2040],
+  ["Dia da Noiva", "Kenya Botelho", 2450, 735],
+  ["Cartório", "", 800, 0],
+  ["Cerimonial", "Grazy", 2000, 600],
+  ["Convites", "", 200, 200],
+  ["Viagem / Lua de Mel", "", 5000, 5000],
+  ["Caixa Padrinhos", "Diversos", 1000, 1000],
+  ["Paróquia", "São José Operário", 1300, 200],
+  ["Terno", "", 350, 0],
+  ["Bem casado (Doces)", "", 300, 300],
+  ["Time de Canto", "", 900, 0],
+  ["Porta alianças", "", 150, 150],
+  ["Buquê", "", 600, 0],
+  ["Lapela", "", 0, 0],
+];
+
+/** Fornecedores e pagamentos já feitos da planilha de orçamentos (pagos antes do app = fora da reserva). */
+export function orcamentoInicial(): { fornecedores: Fornecedor[]; pagamentos: PagamentoFornecedor[] } {
+  const fornecedores: Fornecedor[] = [];
+  const pagamentos: PagamentoFornecedor[] = [];
+  PLANILHA_ORCAMENTOS.forEach(([categoria, nome, total, pago], i) => {
+    const id = `forn-${String(i + 1).padStart(2, "0")}`;
+    fornecedores.push({ id, nome: nome || categoria, categoria, contato: "", valorTotal: total, vencimento: "", prioridade: 2, observacao: "" });
+    if (pago > 0) {
+      pagamentos.push({ id: `${id}-pg-inicial`, fornecedorId: id, data: "2026-11-05", valor: pago, observacao: "Já pago (planilha de orçamentos)", daReserva: false });
+    }
+  });
+  return { fornecedores, pagamentos };
+}
+
 export function bancoVazio(): Banco {
   return {
     config: { ...CONFIG_PADRAO },
@@ -82,8 +116,8 @@ export function bancoVazio(): Banco {
     lancamentos: [],
     contas: [],
     pagamentosContas: [],
-    fornecedores: [],
-    pagamentosFornecedores: [],
+    fornecedores: orcamentoInicial().fornecedores,
+    pagamentosFornecedores: orcamentoInicial().pagamentos,
     tarefas: TAREFAS_PADRAO.map((x) => ({ ...x })),
     eventos: [],
   };
@@ -102,6 +136,21 @@ export const GRUPOS_TAREFAS = [
 ];
 
 export const CATEGORIAS_FORNECEDOR = [
+  "Decoração",
+  "Fotos / Vídeo",
+  "Dia da Noiva",
+  "Cartório",
+  "Cerimonial",
+  "Paróquia",
+  "Convites",
+  "Viagem / Lua de Mel",
+  "Caixa Padrinhos",
+  "Terno",
+  "Bem casado (Doces)",
+  "Time de Canto",
+  "Porta alianças",
+  "Buquê",
+  "Lapela",
   "Local / Espaço",
   "Buffet",
   "Bebidas",
