@@ -142,7 +142,7 @@ assert.ok(ev && ev !== "ignorar");
 {
   assert.equal(ev.provedor, "evolution"); assert.equal(ev.de, "5511999991111"); assert.equal(ev.texto, "mercado 10");
   assert.equal(ev.responderPara, "5511999991111@s.whatsapp.net"); assert.equal(ev.instancia, "gj");
-  assert.equal(pessoaPorTelefone(b, ev.de, ev.nome), "p1");
+  assert.equal(pessoaPorTelefone(b, ev.de), "p1");
 }
 // texto estendido (respondendo/citando) e formato @lid com senderPn
 ev = extrairMensagem(evo({ key: { remoteJid: "123456789@lid", senderPn: "5511988882222@s.whatsapp.net", fromMe: false }, pushName: "Gabi", message: { extendedTextMessage: { text: "uber 20" } } }));
@@ -150,13 +150,12 @@ assert.ok(ev && ev !== "ignorar" && ev.de === "5511988882222" && ev.texto === "u
 // grupo: quem mandou é o participant
 ev = extrairMensagem(evo({ key: { remoteJid: "1203630@g.us", participant: "5511988882222@s.whatsapp.net", fromMe: false }, pushName: "Gabriella", message: { conversation: "guardei 100" } }));
 assert.ok(ev && ev !== "ignorar" && ev.de === "5511988882222" && ev.responderPara === "1203630@g.us");
-// @lid sem telefone -> identifica pelo nome do perfil
-const bNomes = { ...b, config: { ...b.config, nomeP1: "Jullio", nomeP2: "Gabriella", telefoneP1: "", telefoneP2: "" } };
-assert.equal(pessoaPorTelefone(bNomes, "999", "Gabriella Souza"), "p2");
-assert.equal(pessoaPorTelefone(bNomes, "999", "Gabi"), "casal", "apelido curto não bate");
-assert.equal(pessoaPorTelefone(bNomes, "999", "Jullio Dutra"), "p1");
+// só o número vale: nome do perfil igual ao de vocês NÃO libera o acesso
+const bNomes = { ...b, config: { ...b.config, nomeP1: "Jullio", nomeP2: "Gabriella" } };
+assert.equal(identificarPessoa(bNomes, "5521912345678"), null, "número estranho é ignorado");
+assert.equal(identificarPessoa({ ...bNomes, config: { ...bNomes.config, telefoneP1: "", telefoneP2: "" } }, "5511999991111"), null, "sem números cadastrados ninguém é atendido");
 // desconhecidos não são atendidos pela Evolution
-assert.equal(identificarPessoa(bNomes, "5521912345678", "Tia Maria"), null);
+assert.equal(identificarPessoa(bNomes, "123"), null);
 assert.equal(identificarPessoa(b, "5511999991111"), "p1");
 // mensagens próprias: ignora, exceto conversa comigo mesmo; nunca a resposta do robô
 assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: true }, message: { conversation: "oi" } })), "ignorar");

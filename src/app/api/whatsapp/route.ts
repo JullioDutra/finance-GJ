@@ -100,13 +100,16 @@ export async function POST(req: Request) {
 
   try {
     const banco = await carregarBanco();
-    const conhecida = identificarPessoa(banco, recebida.de, recebida.nome);
+    const conhecida = identificarPessoa(banco, recebida.de);
     let pessoa: PessoaId = conhecida ?? "casal";
 
     if (recebida.provedor === "evolution") {
       // O número da Evolution pode ser o WhatsApp pessoal de vocês: só atende vocês dois
       // (ou a conversa "comigo mesmo") e só o grupo que foi ativado.
-      if (!conhecida && !recebida.propria) return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
+      if (!conhecida && !recebida.propria) {
+        console.info(`whatsapp: ignorado número não cadastrado (final ${recebida.de.slice(-4) || "?"})`);
+        return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
+      }
       if (recebida.propria && !conhecida) pessoa = identificarPessoa(banco, recebida.de) ?? "casal";
       if (recebida.grupo) {
         const jid = recebida.responderPara ?? "";

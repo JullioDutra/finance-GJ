@@ -76,22 +76,21 @@ export function nomePessoa(b: Banco, p: PessoaId): string {
   return p === "p1" ? b.config.nomeP1 : p === "p2" ? b.config.nomeP2 : "Casal";
 }
 
-/** Descobre quem mandou pelo número (últimos 8 dígitos); se não achar, tenta pelo nome do perfil. */
-export function pessoaPorTelefone(b: Banco, telefone: string, nomePerfil = ""): PessoaId {
-  return identificarPessoa(b, telefone, nomePerfil) ?? "casal";
+/** Descobre quem mandou pelo número (compara os últimos 8 dígitos). */
+export function pessoaPorTelefone(b: Banco, telefone: string): PessoaId {
+  return identificarPessoa(b, telefone) ?? "casal";
 }
 
-/** Igual a pessoaPorTelefone, mas devolve null quando não é nenhum de vocês dois. */
-export function identificarPessoa(b: Banco, telefone: string, nomePerfil = ""): "p1" | "p2" | null {
+/**
+ * Só aceita os números cadastrados em Ajustes (nunca pelo nome do perfil, que qualquer um pode copiar).
+ * Devolve null quando não é nenhum de vocês dois.
+ */
+export function identificarPessoa(b: Banco, telefone: string): "p1" | "p2" | null {
   const fim = (s: string) => s.replace(/\D/g, "").slice(-8);
   const t = fim(telefone);
-  if (t && fim(b.config.telefoneP1) === t) return "p1";
-  if (t && fim(b.config.telefoneP2) === t) return "p2";
-  const n = semAcento(nomePerfil).split(/\s+/)[0] ?? "";
-  if (n.length >= 3) {
-    if (semAcento(b.config.nomeP1).startsWith(n) || n.startsWith(semAcento(b.config.nomeP1))) return "p1";
-    if (semAcento(b.config.nomeP2).startsWith(n) || n.startsWith(semAcento(b.config.nomeP2))) return "p2";
-  }
+  if (t.length < 8) return null;
+  if (fim(b.config.telefoneP1) === t) return "p1";
+  if (fim(b.config.telefoneP2) === t) return "p2";
   return null;
 }
 

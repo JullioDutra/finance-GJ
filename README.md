@@ -59,7 +59,7 @@ npm run testar
    https://financas-gj.vercel.app/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN
    ```
 2. Eventos: só **MESSAGES_UPSERT** (Webhook by Events e Base64 desligados — se ligar “by events”, também funciona).
-3. Cadastrem os números de vocês em **Ajustes**. O robô **só atende vocês dois** (pelo número ou, se não achar, pelo nome do perfil) — mensagens de outras pessoas são ignoradas.
+3. Cadastrem os números de vocês em **Ajustes**. O robô **só atende esses dois números** — mensagens de qualquer outro número são ignoradas, sem resposta.
 4. Mandem mensagens para o número da instância. As respostas do robô começam com 🤖.
 5. Para usar num grupo, mandem `ativar grupo` dentro dele. Os outros grupos são ignorados.
 

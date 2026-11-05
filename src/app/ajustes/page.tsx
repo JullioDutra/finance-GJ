@@ -209,7 +209,7 @@ function ConfigCasal() {
           <Campo rotulo="Nome 2">
             <Input value={c.nomeP2} onChange={(e) => set("nomeP2", e.target.value)} />
           </Campo>
-          <Campo rotulo={`WhatsApp de ${c.nomeP1}`} dica="Com DDD. Usado para saber quem mandou a mensagem.">
+          <Campo rotulo={`WhatsApp de ${c.nomeP1}`} dica="Com DDD. O robô do WhatsApp só atende os números cadastrados aqui.">
             <Input inputMode="tel" value={c.telefoneP1} onChange={(e) => set("telefoneP1", e.target.value)} placeholder="(11) 99999-9999" />
           </Campo>
           <Campo rotulo={`WhatsApp de ${c.nomeP2}`}>
