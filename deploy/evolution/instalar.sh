@@ -6,11 +6,16 @@ set -euo pipefail
 PASTA="$HOME/evolution"
 VERSAO="v2.3.7"
 
-# 1) Docker
+# 1) Docker (usa sudo quando o usuário não é root)
+SUDO=""
+[ "$(id -u)" -ne 0 ] && SUDO="sudo"
 if ! command -v docker >/dev/null 2>&1; then
-  echo ">> Instalando Docker..."
-  curl -fsSL https://get.docker.com | sh
+  echo ">> Instalando Docker (pode pedir sua senha)..."
+  curl -fsSL https://get.docker.com | $SUDO sh
 fi
+# sem permissão direta no Docker? usa sudo
+DOCKER="docker"
+docker info >/dev/null 2>&1 || DOCKER="$SUDO docker"
 
 mkdir -p "$PASTA" && cd "$PASTA"
 
@@ -94,11 +99,11 @@ volumes:
   redis:
 YML
 
-docker compose up -d
+$DOCKER compose up -d
 
 echo
 echo "=============================================="
 echo " Evolution no ar em: ${SERVER_URL}/manager"
 echo " Chave da API (guarde!): $(grep AUTHENTICATION_API_KEY .env | cut -d= -f2)"
-echo " Logs:   cd $PASTA && docker compose logs -f api"
+echo " Logs:   cd $PASTA && $DOCKER compose logs -f api"
 echo "=============================================="
