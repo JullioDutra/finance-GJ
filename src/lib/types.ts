@@ -24,7 +24,10 @@ export interface Categoria {
   id: string;
   nome: string;
   tipo: TipoLancamento;
-  emoji: string;
+  /** nome do ícone (ver ICONES_CATEGORIA); categorias antigas podem não ter */
+  icone?: string;
+  /** legado: versões antigas usavam emoji */
+  emoji?: string;
   casa: boolean; // entra no "custo da casa"
   palavras: string; // palavras-chave separadas por vírgula (usadas no WhatsApp)
 }

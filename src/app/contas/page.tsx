@@ -6,7 +6,9 @@ import { contasDoMes, totaisContas, type ContaDoMes } from "@/lib/calc";
 import { dataBR, dataCurta, dinheiro, hojeISO, mesAtual, nomeMes, novoId, parseValor } from "@/lib/format";
 import { opsDesfazerConta, opsPagarConta } from "@/lib/ops";
 import type { ContaFixa, PessoaId } from "@/lib/types";
-import { Barra, Botao, Campo, Card, cx, Input, Modal, Select, SeletorMes, SeletorPessoa, Selo, Stat, Textarea, Titulo, usePessoas, Vazio } from "@/components/ui";
+import { Check, CircleAlert, CircleCheckBig, Info, Plus, Printer, Trash2 } from "lucide-react";
+import { Barra, Botao, Campo, Card, cx, Input, Modal, Select, SeletorMes, SeletorPessoa, Selo, Textarea, Titulo, usePessoas, Vazio } from "@/components/ui";
+import { ChipCategoria } from "@/components/icones";
 
 export default function ContasDia6() {
   const { banco, aplicar } = useDados();
@@ -24,67 +26,94 @@ export default function ContasDia6() {
       await aplicar(opsDesfazerConta(banco, c.conta.id, mes), `${c.conta.nome}: desmarcada`);
     } else {
       const data = mes === mesAtual() ? hoje : c.vencimento;
-      await aplicar(opsPagarConta(c.conta, mes, c.conta.valor, data), `${c.conta.nome}: paga ✅`);
+      await aplicar(opsPagarConta(c.conta, mes, c.conta.valor, data), `${c.conta.nome}: paga`);
     }
   }
 
   return (
     <div className="space-y-4">
       <Titulo
+        area="Finanças"
         titulo={`Contas do dia ${banco.config.diaPadraoContas}`}
         sub="Checklist de tudo que vence no mês — marque conforme for pagando"
         acoes={
           <>
             <SeletorMes mes={mes} setMes={setMes} />
-            <Botao variante="secundario" onClick={() => window.print()}>
-              🖨️
+            <Botao variante="secundario" icone={Printer} onClick={() => window.print()} aria-label="Imprimir" />
+            <Botao icone={Plus} onClick={() => setEditando("nova")}>
+              Conta fixa
             </Botao>
-            <Botao onClick={() => setEditando("nova")}>+ Conta fixa</Botao>
           </>
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat rotulo="Total do mês" valor={dinheiro(t.total)} detalhe={`${t.qtd} conta(s)`} />
-        <Stat rotulo="Já pago" cor="bg-ok" valor={dinheiro(t.pago)} detalhe={`${t.qtdPagas} de ${t.qtd}`} />
-        <Stat rotulo="Falta pagar" cor="bg-despesa" valor={<span className={t.falta > 0 ? "text-danger" : "text-ok"}>{dinheiro(t.falta)}</span>} detalhe={`${t.qtd - t.qtdPagas} pendente(s)`} destaque />
-        <Stat rotulo="Atrasadas" valor={t.atrasadas} detalhe={t.atrasadas ? "venceram e não foram marcadas" : "nenhuma 🎉"} />
-      </div>
-
       {t.qtd > 0 && (
-        <div>
-          <Barra valor={t.qtdPagas} total={t.qtd} cor="bg-ok" altura="h-3" />
-          <p className="mt-1 text-xs text-muted">
-            {Math.round((t.qtdPagas / t.qtd) * 100)}% das contas de {nomeMes(mes)} pagas
-          </p>
-        </div>
+        <section className="avoid-break overflow-hidden rounded-3xl border border-line bg-surface shadow-cartao">
+          <div className="grid gap-5 p-5 sm:grid-cols-[1.2fr_1fr] sm:p-6">
+            <div>
+              <div className="rotulo">{t.falta > 0 ? "Falta pagar" : "Tudo pago"}</div>
+              <div className={cx("display num mt-1.5 text-4xl font-medium", t.falta > 0 ? "text-ink" : "text-ok")}>{dinheiro(t.falta)}</div>
+              <div className="mt-4">
+                <Barra valor={t.qtdPagas} total={t.qtd} cor="bg-ok" altura="h-2.5" />
+                <p className="mt-2 text-xs text-muted">
+                  <span className="font-semibold text-ink">
+                    {t.qtdPagas} de {t.qtd}
+                  </span>{" "}
+                  contas de {nomeMes(mes)} pagas
+                </p>
+              </div>
+            </div>
+            <dl className="grid grid-cols-3 gap-3 self-center text-sm sm:grid-cols-1 sm:gap-2.5">
+              <div className="flex flex-col sm:flex-row sm:justify-between">
+                <dt className="text-xs text-muted sm:text-sm">Total do mês</dt>
+                <dd className="num font-semibold">{dinheiro(t.total)}</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between">
+                <dt className="text-xs text-muted sm:text-sm">Já pago</dt>
+                <dd className="num font-semibold text-ok">{dinheiro(t.pago)}</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between">
+                <dt className="text-xs text-muted sm:text-sm">Atrasadas</dt>
+                <dd className={cx("num font-semibold", t.atrasadas ? "text-danger" : "text-muted")}>{t.atrasadas}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
       )}
 
       {lista.length === 0 ? (
-        <Vazio acao={<Botao onClick={() => setEditando("nova")}>+ Cadastrar conta fixa</Botao>}>
+        <Vazio
+          icone={CircleCheckBig}
+          acao={
+            <Botao icone={Plus} onClick={() => setEditando("nova")}>
+              Cadastrar conta fixa
+            </Botao>
+          }
+        >
           Cadastre as contas que vocês pagam todo mês (aluguel, luz, internet, faculdade, cartão…). Elas aparecem automaticamente todo mês aqui.
         </Vazio>
       ) : (
-        <Card className="p-0">
+        <Card className="overflow-hidden p-0 sm:p-0">
           <ul className="divide-y divide-line">
             {lista.map((c) => {
               const cat = banco.categorias.find((x) => x.id === c.conta.categoriaId);
               return (
-                <li key={c.conta.id} className={cx("flex items-center gap-3 px-4 py-3", c.pago && "bg-ok-soft/40")}>
+                <li key={c.conta.id} className={cx("flex items-center gap-3 px-4 py-3.5 transition", c.pago && "bg-ok-soft/35")}>
                   <button
                     type="button"
                     onClick={() => alternar(c)}
                     aria-label={c.pago ? `Desmarcar ${c.conta.nome}` : `Marcar ${c.conta.nome} como paga`}
                     className={cx(
-                      "grid h-8 w-8 shrink-0 place-items-center rounded-lg border-2 text-lg font-bold transition",
-                      c.pago ? "border-ok bg-ok text-white" : c.atrasada ? "border-danger" : "border-line hover:border-ok",
+                      "grid h-8 w-8 shrink-0 place-items-center rounded-full border-2 transition active:scale-90",
+                      c.pago ? "border-ok bg-ok text-white" : c.atrasada ? "border-danger/60 hover:border-danger" : "border-surface-3 hover:border-ok",
                     )}
                   >
-                    {c.pago ? "✓" : ""}
+                    {c.pago && <Check className="h-4 w-4" strokeWidth={3} />}
                   </button>
+                  <ChipCategoria categoria={cat} tamanho="sm" tom={c.pago ? "neutro" : "despesa"} />
                   <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setEditando(c.conta)}>
                     <span className={cx("block truncate font-medium", c.pago && "text-muted line-through")}>
-                      {cat?.emoji} {c.conta.nome}
+                      {c.conta.nome}
                     </span>
                     <span className="block truncate text-xs text-muted">
                       vence {dataCurta(c.vencimento)} · {nome(c.conta.pessoa)}
@@ -98,7 +127,9 @@ export default function ContasDia6() {
                         alterar valor
                       </button>
                     ) : c.atrasada ? (
-                      <Selo tom="danger">atrasada</Selo>
+                      <Selo tom="danger" icone={CircleAlert}>
+                        atrasada
+                      </Selo>
                     ) : (
                       <button type="button" className="no-print text-xs text-brand" onClick={() => setPagando(c)}>
                         pagar outro valor
@@ -112,8 +143,11 @@ export default function ContasDia6() {
         </Card>
       )}
 
-      <p className="text-xs text-muted">
-        💡 Ao marcar uma conta como paga, o sistema cria automaticamente o gasto em Lançamentos. Desmarcar remove o gasto. Pelo WhatsApp: <code>paguei luz</code> ou <code>paguei luz 187,30</code>.
+      <p className="flex gap-2 text-xs text-muted">
+        <Info className="mt-px h-3.5 w-3.5 shrink-0" />
+        <span>
+          Ao marcar uma conta como paga, o sistema cria automaticamente o gasto em Lançamentos. Desmarcar remove o gasto. Toque no nome da conta para editar.
+        </span>
       </p>
 
       {inativas.length > 0 && (
@@ -153,7 +187,7 @@ function FormPagar({ c, mes, aoTerminar }: { c: ContaDoMes; mes: string; aoTermi
         e.preventDefault();
         const v = parseValor(valor);
         if (!(v > 0)) return;
-        await aplicar(opsPagarConta(c.conta, mes, v, data), "Pagamento registrado ✅");
+        await aplicar(opsPagarConta(c.conta, mes, v, data), "Pagamento registrado");
         aoTerminar();
       }}
     >
@@ -216,7 +250,7 @@ function FormConta({ conta, aoTerminar }: { conta?: ContaFixa; aoTerminar: () =>
             .filter((c) => c.tipo === "despesa")
             .map((c) => (
               <option key={c.id} value={c.id}>
-                {c.emoji} {c.nome}
+                {c.nome}
               </option>
             ))}
         </Select>
@@ -236,6 +270,7 @@ function FormConta({ conta, aoTerminar }: { conta?: ContaFixa; aoTerminar: () =>
         {conta && (
           <Botao
             variante="perigo"
+            icone={Trash2}
             onClick={async () => {
               if (!confirm("Excluir esta conta? Os gastos já lançados continuam em Lançamentos.")) return;
               await aplicar(

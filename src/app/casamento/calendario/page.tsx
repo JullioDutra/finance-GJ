@@ -5,13 +5,15 @@ import { useDados } from "@/lib/store";
 import { dataBR, hojeISO, mesAtual, nomeMes, novoId } from "@/lib/format";
 import { TIPOS_EVENTO } from "@/lib/defaults";
 import type { Evento } from "@/lib/types";
+import { Banknote, CalendarDays, Heart, ListChecks, Plus, Trash2, type LucideIcon } from "lucide-react";
 import { Botao, Campo, Card, cx, Input, Modal, Select, SeletorMes, Textarea, Titulo } from "@/components/ui";
+import { ICONES_EVENTO } from "@/components/icones";
 
 interface Item {
   id: string;
   data: string;
   titulo: string;
-  emoji: string;
+  icone: LucideIcon;
   sub: string;
   tipo: "evento" | "fornecedor" | "tarefa" | "casamento" | "conta";
   evento?: Evento;
@@ -27,10 +29,10 @@ export default function Calendario() {
   const hoje = hojeISO();
 
   const itens: Item[] = [
-    ...banco.eventos.map((e) => ({ id: e.id, data: e.data, titulo: e.titulo, emoji: TIPOS_EVENTO[e.tipo]?.emoji ?? "📌", sub: [e.hora, e.local].filter(Boolean).join(" · "), tipo: "evento" as const, evento: e })),
-    ...banco.fornecedores.filter((f) => f.vencimento).map((f) => ({ id: `f-${f.id}`, data: f.vencimento, titulo: `Quitar ${f.nome}`, emoji: "💸", sub: f.categoria, tipo: "fornecedor" as const })),
-    ...banco.tarefas.filter((t) => t.prazo && !t.feita).map((t) => ({ id: `t-${t.id}`, data: t.prazo, titulo: t.titulo, emoji: "📋", sub: `prazo da tarefa · ${t.grupo}`, tipo: "tarefa" as const })),
-    ...(banco.config.dataCasamento ? [{ id: "casamento", data: banco.config.dataCasamento, titulo: "Nosso casamento!", emoji: "💍", sub: "", tipo: "casamento" as const }] : []),
+    ...banco.eventos.map((e) => ({ id: e.id, data: e.data, titulo: e.titulo, icone: ICONES_EVENTO[e.tipo] ?? CalendarDays, sub: [e.hora, e.local].filter(Boolean).join(" · "), tipo: "evento" as const, evento: e })),
+    ...banco.fornecedores.filter((f) => f.vencimento).map((f) => ({ id: `f-${f.id}`, data: f.vencimento, titulo: `Quitar ${f.nome}`, icone: Banknote, sub: f.categoria, tipo: "fornecedor" as const })),
+    ...banco.tarefas.filter((t) => t.prazo && !t.feita).map((t) => ({ id: `t-${t.id}`, data: t.prazo, titulo: t.titulo, icone: ListChecks, sub: `prazo da tarefa · ${t.grupo}`, tipo: "tarefa" as const })),
+    ...(banco.config.dataCasamento ? [{ id: "casamento", data: banco.config.dataCasamento, titulo: "Nosso casamento", icone: Heart, sub: "", tipo: "casamento" as const }] : []),
   ];
   const porDia = new Map<string, Item[]>();
   for (const i of itens) porDia.set(i.data, [...(porDia.get(i.data) ?? []), i]);
@@ -44,27 +46,30 @@ export default function Calendario() {
   const selecionados = dia ? porDia.get(dia) ?? [] : [];
 
   const corTipo = (t: Item["tipo"]) =>
-    t === "casamento" ? "bg-brand" : t === "fornecedor" ? "bg-despesa" : t === "tarefa" ? "bg-warn" : "bg-receita";
+    t === "casamento" ? "bg-gold" : t === "fornecedor" ? "bg-despesa" : t === "tarefa" ? "bg-warn" : "bg-brand";
 
   return (
     <div className="space-y-4">
       <Titulo
-        titulo="Agenda do casamento"
+        area="Casamento"
+        titulo="Agenda"
         sub="Reuniões, provas, visitas, vencimentos de fornecedores e prazos de tarefas"
         acoes={
           <>
             <SeletorMes mes={mes} setMes={setMes} />
-            <Botao onClick={() => setEditar({ novo: dia ?? hoje })}>+ Compromisso</Botao>
+            <Botao icone={Plus} onClick={() => setEditar({ novo: dia ?? hoje })}>
+              Compromisso
+            </Botao>
           </>
         }
       />
 
       <div className="flex flex-wrap gap-3 text-xs text-muted">
         {[
-          ["bg-receita", "Compromisso"],
+          ["bg-brand", "Compromisso"],
           ["bg-despesa", "Vencimento de fornecedor"],
           ["bg-warn", "Prazo de tarefa"],
-          ["bg-brand", "Casamento"],
+          ["bg-gold", "Casamento"],
         ].map(([c, n]) => (
           <span key={n} className="inline-flex items-center gap-1.5">
             <span className={cx("h-2.5 w-2.5 rounded-full", c)} /> {n}
@@ -92,11 +97,12 @@ export default function Calendario() {
                   onClick={() => setDia(d === dia ? null : d)}
                   className={cx(
                     "flex aspect-square flex-col items-center rounded-xl border p-1 text-sm transition sm:aspect-auto sm:min-h-20 sm:items-start sm:p-1.5",
-                    d === dia ? "border-brand bg-brand-soft" : "border-line hover:bg-surface-2",
-                    d === hoje && "ring-2 ring-brand/40",
+                    d === dia ? "border-brand bg-brand-soft" : "border-transparent bg-surface-2/50 hover:border-line hover:bg-surface-2",
                   )}
                 >
-                  <span className={cx("num text-xs", d === hoje ? "font-bold text-brand" : "text-muted")}>{Number(d.slice(8))}</span>
+                  <span className={cx("num grid h-6 w-6 place-items-center rounded-full text-xs", d === hoje ? "bg-brand font-semibold text-brand-ink" : "text-muted")}>
+                    {Number(d.slice(8))}
+                  </span>
                   <span className="mt-auto flex flex-wrap justify-center gap-0.5 sm:hidden">
                     {lista.slice(0, 3).map((it) => (
                       <span key={it.id} className={cx("h-1.5 w-1.5 rounded-full", corTipo(it.tipo))} />
@@ -129,14 +135,24 @@ export default function Calendario() {
   );
 }
 
+const TOM_ITEM: Record<Item["tipo"], string> = {
+  evento: "bg-brand-soft text-brand",
+  fornecedor: "bg-despesa/12 text-despesa",
+  tarefa: "bg-warn-soft text-warn",
+  casamento: "bg-gold-soft text-gold",
+  conta: "bg-surface-2 text-muted",
+};
+
 function ListaItens({ itens, mostrarData, onEditar, vazio }: { itens: Item[]; mostrarData: boolean; onEditar: (e: Evento) => void; vazio: string }) {
   if (!itens.length) return <p className="text-sm text-muted">{vazio}</p>;
   return (
     <ul className="space-y-2">
       {itens.map((i) => (
         <li key={i.id}>
-          <button type="button" disabled={!i.evento} onClick={() => i.evento && onEditar(i.evento)} className="flex w-full gap-2 rounded-xl p-1.5 text-left enabled:hover:bg-surface-2">
-            <span className="text-lg">{i.emoji}</span>
+          <button type="button" disabled={!i.evento} onClick={() => i.evento && onEditar(i.evento)} className="flex w-full items-center gap-3 rounded-xl p-1.5 text-left enabled:hover:bg-surface-2">
+            <span className={cx("grid h-9 w-9 shrink-0 place-items-center rounded-xl", TOM_ITEM[i.tipo])}>
+              <i.icone className="h-4 w-4" />
+            </span>
             <span className="min-w-0">
               <span className="block truncate text-sm font-medium">{i.titulo}</span>
               <span className="block text-xs text-muted">
@@ -182,7 +198,7 @@ function FormEvento({ e: inicial, dataInicial, aoTerminar }: { e?: Evento; dataI
           <Select value={e.tipo} onChange={(x) => set("tipo", x.target.value as Evento["tipo"])}>
             {Object.entries(TIPOS_EVENTO).map(([k, v]) => (
               <option key={k} value={k}>
-                {v.emoji} {v.nome}
+                {v.nome}
               </option>
             ))}
           </Select>
@@ -198,6 +214,7 @@ function FormEvento({ e: inicial, dataInicial, aoTerminar }: { e?: Evento; dataI
         {inicial && (
           <Botao
             variante="perigo"
+            icone={Trash2}
             onClick={async () => {
               if (!confirm("Excluir este compromisso?")) return;
               await aplicar([{ tipo: "delete", colecao: "eventos", id: inicial.id }], "Compromisso excluído");

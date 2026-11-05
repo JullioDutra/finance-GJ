@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useDados } from "@/lib/store";
 import { lancamentosDoMes } from "@/lib/calc";
 import { dataBR, dinheiro, mesAtual, nomeMes, semAcento } from "@/lib/format";
-import { Botao, Card, cx, Input, Select, SeletorMes, SeletorPessoa, Titulo, usePessoas, Vazio } from "@/components/ui";
+import { CircleCheckBig, FileSpreadsheet, MessageCircle, Plus, ReceiptText, Search } from "lucide-react";
+import { Botao, Card, cx, Input, Segmentos, Select, SeletorMes, SeletorPessoa, Titulo, usePessoas, Vazio } from "@/components/ui";
+import { ChipCategoria } from "@/components/icones";
 import { useLancamentoModal } from "@/components/shell";
 
 const DIAS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
@@ -46,88 +48,109 @@ export default function Lancamentos() {
   return (
     <div className="space-y-4">
       <Titulo
+        area="Finanças"
         titulo="Lançamentos"
         sub={`${lista.length} lançamento(s) em ${nomeMes(mes)}`}
         acoes={
           <>
             <SeletorMes mes={mes} setMes={setMes} />
-            <Botao variante="secundario" onClick={exportarCSV}>
-              ⬇️ Excel/CSV
+            <Botao variante="secundario" icone={FileSpreadsheet} onClick={exportarCSV}>
+              Excel
             </Botao>
-            <Botao onClick={() => abrir()}>+ Novo</Botao>
+            <Botao icone={Plus} onClick={() => abrir()}>
+              Novo
+            </Botao>
           </>
         }
       />
 
       <Card className="no-print">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="inline-flex rounded-xl border border-line bg-surface p-0.5 text-sm">
-            {[
-              ["todos", "Todos"],
-              ["despesa", "Gastos"],
-              ["receita", "Receitas"],
-              ["guardado", "Guardado"],
-            ].map(([id, n]) => (
-              <button key={id} type="button" onClick={() => setTipo(id)} className={cx("rounded-[10px] px-3 py-1.5", tipo === id ? "bg-brand text-brand-ink" : "text-muted")}>
-                {n}
-              </button>
-            ))}
-          </div>
+          <Segmentos
+            valor={tipo}
+            onChange={setTipo}
+            opcoes={[
+              { id: "todos", nome: "Todos" },
+              { id: "despesa", nome: "Gastos" },
+              { id: "receita", nome: "Receitas" },
+              { id: "guardado", nome: "Guardado" },
+            ]}
+          />
           <SeletorPessoa valor={pessoa} onChange={setPessoa} comTodos />
           <Select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="lg:max-w-56">
             <option value="todas">Todas as categorias</option>
             {banco.categorias.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.emoji} {c.nome}
+                {c.nome}
               </option>
             ))}
           </Select>
-          <Input placeholder="Buscar…" value={busca} onChange={(e) => setBusca(e.target.value)} className="lg:max-w-56" />
+          <div className="relative lg:max-w-56">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Input placeholder="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-9" />
+          </div>
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3 text-center">
-        <div className="rounded-2xl border border-line bg-surface p-3">
-          <div className="text-xs text-muted">Receitas</div>
-          <div className="num font-semibold text-receita">{dinheiro(soma("receita"))}</div>
-        </div>
-        <div className="rounded-2xl border border-line bg-surface p-3">
-          <div className="text-xs text-muted">Gastos</div>
-          <div className="num font-semibold text-despesa">{dinheiro(soma("despesa"))}</div>
-        </div>
-        <div className="rounded-2xl border border-line bg-surface p-3">
-          <div className="text-xs text-muted">Guardado</div>
-          <div className="num font-semibold text-guardado">{dinheiro(soma("guardado"))}</div>
-        </div>
+      <div className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-surface shadow-cartao">
+        {[
+          ["Receitas", soma("receita"), "text-receita"],
+          ["Gastos", soma("despesa"), "text-despesa"],
+          ["Guardado", soma("guardado"), "text-guardado"],
+        ].map(([n, v, c]) => (
+          <div key={n as string} className="px-3 py-3.5 text-center">
+            <div className="text-xs text-muted">{n}</div>
+            <div className={cx("num mt-0.5 font-semibold", c as string)}>{dinheiro(v as number)}</div>
+          </div>
+        ))}
       </div>
 
       {lista.length === 0 ? (
-        <Vazio acao={<Botao onClick={() => abrir()}>+ Novo lançamento</Botao>}>Nenhum lançamento encontrado.</Vazio>
+        <Vazio
+          icone={ReceiptText}
+          acao={
+            <Botao icone={Plus} onClick={() => abrir()}>
+              Novo lançamento
+            </Botao>
+          }
+        >
+          Nenhum lançamento encontrado.
+        </Vazio>
       ) : (
         <div className="space-y-3">
           {[...porDia.entries()].map(([dia, itens]) => (
-            <Card key={dia} className="p-0">
-              <div className="flex items-center justify-between border-b border-line px-4 py-2 text-xs text-muted">
-                <span>
-                  {dataBR(dia)} · {DIAS[new Date(dia + "T12:00:00").getDay()]}
+            <Card key={dia} className="overflow-hidden p-0 sm:p-0">
+              <div className="flex items-center justify-between border-b border-line bg-surface-2/50 px-4 py-2 text-xs text-muted">
+                <span className="font-medium">
+                  {dataBR(dia)} <span className="font-normal">· {DIAS[new Date(dia + "T12:00:00").getDay()]}</span>
                 </span>
                 <span className="num">
                   {dinheiro(itens.filter((l) => l.tipo === "despesa").reduce((s, l) => s + l.valor, 0))} gastos
                 </span>
               </div>
-              <ul>
+              <ul className="divide-y divide-line">
                 {itens.map((l) => {
                   const c = cats.get(l.categoriaId);
                   return (
                     <li key={l.id}>
-                      <button type="button" onClick={() => abrir({ editar: l })} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-surface-2 text-lg">{c?.emoji ?? "❔"}</span>
+                      <button type="button" onClick={() => abrir({ editar: l })} className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-surface-2/60">
+                        <ChipCategoria categoria={c} tom={l.tipo} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{l.descricao || c?.nome}</span>
-                          <span className="block truncate text-xs text-muted">
+                          <span className="flex items-center gap-1 truncate text-xs text-muted">
                             {c?.nome} · {nome(l.pessoa)}
-                            {l.origem === "whatsapp" && " · 💬 WhatsApp"}
-                            {l.origem === "conta_fixa" && " · ✅ conta do dia 6"}
+                            {l.origem === "whatsapp" && (
+                              <>
+                                {" · "}
+                                <MessageCircle className="h-3 w-3" /> WhatsApp
+                              </>
+                            )}
+                            {l.origem === "conta_fixa" && (
+                              <>
+                                {" · "}
+                                <CircleCheckBig className="h-3 w-3" /> conta do dia 6
+                              </>
+                            )}
                           </span>
                         </span>
                         <span className={cx("num shrink-0 text-sm font-semibold", l.tipo === "receita" ? "text-receita" : l.tipo === "guardado" ? "text-guardado" : "")}>

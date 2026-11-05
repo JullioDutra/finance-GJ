@@ -17,29 +17,29 @@ type Cat = Omit<Categoria, "id"> & { id: string };
 
 export const CATEGORIAS_PADRAO: Cat[] = [
   // despesas da casa
-  { id: "cat-aluguel", nome: "Aluguel / Prestação", tipo: "despesa", emoji: "🏠", casa: true, palavras: "aluguel,prestacao,financiamento,condominio,iptu" },
-  { id: "cat-energia", nome: "Energia", tipo: "despesa", emoji: "💡", casa: true, palavras: "luz,energia,enel,cemig,light,copel,celpe,coelba" },
-  { id: "cat-agua", nome: "Água", tipo: "despesa", emoji: "🚿", casa: true, palavras: "agua,saneamento,sabesp,copasa,cedae" },
-  { id: "cat-internet", nome: "Internet / Celular", tipo: "despesa", emoji: "📶", casa: true, palavras: "internet,wifi,celular,telefone,vivo,claro,tim,oi,plano" },
-  { id: "cat-gas", nome: "Gás", tipo: "despesa", emoji: "🔥", casa: true, palavras: "gas,botijao" },
-  { id: "cat-mercado", nome: "Mercado", tipo: "despesa", emoji: "🛒", casa: true, palavras: "mercado,supermercado,feira,atacadao,assai,hortifruti,padaria,acougue" },
-  { id: "cat-casa", nome: "Itens p/ casa", tipo: "despesa", emoji: "🛋️", casa: true, palavras: "moveis,movel,eletro,decoracao,utensilio,limpeza,casa" },
+  { id: "cat-aluguel", nome: "Aluguel / Prestação", tipo: "despesa", icone: "casa", casa: true, palavras: "aluguel,prestacao,financiamento,condominio,iptu" },
+  { id: "cat-energia", nome: "Energia", tipo: "despesa", icone: "energia", casa: true, palavras: "luz,energia,enel,cemig,light,copel,celpe,coelba" },
+  { id: "cat-agua", nome: "Água", tipo: "despesa", icone: "agua", casa: true, palavras: "agua,saneamento,sabesp,copasa,cedae" },
+  { id: "cat-internet", nome: "Internet / Celular", tipo: "despesa", icone: "internet", casa: true, palavras: "internet,wifi,celular,telefone,vivo,claro,tim,oi,plano" },
+  { id: "cat-gas", nome: "Gás", tipo: "despesa", icone: "gas", casa: true, palavras: "gas,botijao" },
+  { id: "cat-mercado", nome: "Mercado", tipo: "despesa", icone: "mercado", casa: true, palavras: "mercado,supermercado,feira,atacadao,assai,hortifruti,padaria,acougue" },
+  { id: "cat-casa", nome: "Itens p/ casa", tipo: "despesa", icone: "sofa", casa: true, palavras: "moveis,movel,eletro,decoracao,utensilio,limpeza,casa" },
   // despesas pessoais
-  { id: "cat-transporte", nome: "Transporte", tipo: "despesa", emoji: "🚗", casa: false, palavras: "uber,99,gasolina,combustivel,posto,onibus,metro,estacionamento,pedagio,carro" },
-  { id: "cat-alimentacao", nome: "Comer fora", tipo: "despesa", emoji: "🍔", casa: false, palavras: "restaurante,lanche,ifood,almoco,jantar,pizza,hamburguer,cafe,bar" },
-  { id: "cat-saude", nome: "Saúde", tipo: "despesa", emoji: "💊", casa: false, palavras: "farmacia,remedio,medico,consulta,exame,plano de saude,dentista,academia" },
-  { id: "cat-lazer", nome: "Lazer", tipo: "despesa", emoji: "🎉", casa: false, palavras: "cinema,show,viagem,passeio,lazer,netflix,spotify,streaming,jogo" },
-  { id: "cat-compras", nome: "Compras pessoais", tipo: "despesa", emoji: "🛍️", casa: false, palavras: "roupa,sapato,shopping,presente,beleza,salao,cabelo" },
-  { id: "cat-educacao", nome: "Educação", tipo: "despesa", emoji: "📚", casa: false, palavras: "curso,faculdade,livro,escola,mensalidade" },
-  { id: "cat-cartao", nome: "Cartão / Dívidas", tipo: "despesa", emoji: "💳", casa: false, palavras: "cartao,fatura,emprestimo,parcela,divida" },
-  { id: "cat-casamento", nome: "Casamento (avulso)", tipo: "despesa", emoji: "💍", casa: false, palavras: "casamento,noivado" },
-  { id: "cat-outros", nome: "Outros", tipo: "despesa", emoji: "📦", casa: false, palavras: "" },
+  { id: "cat-transporte", nome: "Transporte", tipo: "despesa", icone: "carro", casa: false, palavras: "uber,99,gasolina,combustivel,posto,onibus,metro,estacionamento,pedagio,carro" },
+  { id: "cat-alimentacao", nome: "Comer fora", tipo: "despesa", icone: "comida", casa: false, palavras: "restaurante,lanche,ifood,almoco,jantar,pizza,hamburguer,cafe,bar" },
+  { id: "cat-saude", nome: "Saúde", tipo: "despesa", icone: "saude", casa: false, palavras: "farmacia,remedio,medico,consulta,exame,plano de saude,dentista,academia" },
+  { id: "cat-lazer", nome: "Lazer", tipo: "despesa", icone: "lazer", casa: false, palavras: "cinema,show,viagem,passeio,lazer,netflix,spotify,streaming,jogo" },
+  { id: "cat-compras", nome: "Compras pessoais", tipo: "despesa", icone: "compras", casa: false, palavras: "roupa,sapato,shopping,presente,beleza,salao,cabelo" },
+  { id: "cat-educacao", nome: "Educação", tipo: "despesa", icone: "estudo", casa: false, palavras: "curso,faculdade,livro,escola,mensalidade" },
+  { id: "cat-cartao", nome: "Cartão / Dívidas", tipo: "despesa", icone: "cartao", casa: false, palavras: "cartao,fatura,emprestimo,parcela,divida" },
+  { id: "cat-casamento", nome: "Casamento (avulso)", tipo: "despesa", icone: "alianca", casa: false, palavras: "casamento,noivado" },
+  { id: "cat-outros", nome: "Outros", tipo: "despesa", icone: "caixa", casa: false, palavras: "" },
   // receitas
-  { id: "cat-salario", nome: "Salário", tipo: "receita", emoji: "💼", casa: false, palavras: "salario,pagamento,holerite,adiantamento,vale" },
-  { id: "cat-extra", nome: "Renda extra", tipo: "receita", emoji: "✨", casa: false, palavras: "extra,freela,freelance,bico,venda,comissao,bonus,13" },
-  { id: "cat-outras-receitas", nome: "Outras receitas", tipo: "receita", emoji: "💰", casa: false, palavras: "pix recebido,reembolso,presente recebido" },
+  { id: "cat-salario", nome: "Salário", tipo: "receita", icone: "trabalho", casa: false, palavras: "salario,pagamento,holerite,adiantamento,vale" },
+  { id: "cat-extra", nome: "Renda extra", tipo: "receita", icone: "extra", casa: false, palavras: "extra,freela,freelance,bico,venda,comissao,bonus,13" },
+  { id: "cat-outras-receitas", nome: "Outras receitas", tipo: "receita", icone: "moedas", casa: false, palavras: "pix recebido,reembolso,presente recebido" },
   // guardado
-  { id: "cat-reserva-casamento", nome: "Reserva do casamento", tipo: "guardado", emoji: "💒", casa: false, palavras: "guardei,reserva,poupanca,investi,casamento" },
+  { id: "cat-reserva-casamento", nome: "Reserva do casamento", tipo: "guardado", icone: "cofre", casa: false, palavras: "guardei,reserva,poupanca,investi,casamento" },
 ];
 
 const t = (id: string, titulo: string, grupo: string): Tarefa => ({
@@ -171,10 +171,10 @@ export const CATEGORIAS_FORNECEDOR = [
   "Outros",
 ];
 
-export const TIPOS_EVENTO: Record<string, { nome: string; emoji: string }> = {
-  reuniao: { nome: "Reunião", emoji: "🤝" },
-  prova: { nome: "Prova / degustação", emoji: "🍰" },
-  visita: { nome: "Visita", emoji: "📍" },
-  pagamento: { nome: "Pagamento", emoji: "💸" },
-  outro: { nome: "Outro", emoji: "📌" },
+export const TIPOS_EVENTO: Record<string, { nome: string }> = {
+  reuniao: { nome: "Reunião" },
+  prova: { nome: "Prova / degustação" },
+  visita: { nome: "Visita" },
+  pagamento: { nome: "Pagamento" },
+  outro: { nome: "Outro" },
 };

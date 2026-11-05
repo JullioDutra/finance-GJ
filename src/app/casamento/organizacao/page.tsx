@@ -5,7 +5,8 @@ import { useDados } from "@/lib/store";
 import { dataCurta, hojeISO, novoId } from "@/lib/format";
 import { GRUPOS_TAREFAS } from "@/lib/defaults";
 import type { PessoaId, Tarefa } from "@/lib/types";
-import { Barra, Botao, Campo, Card, cx, Input, Modal, Select, SeletorPessoa, Selo, Textarea, Titulo, usePessoas, Vazio } from "@/components/ui";
+import { Check, CircleAlert, ListChecks, Plus, Printer, Trash2 } from "lucide-react";
+import { Barra, Botao, Campo, Card, cx, Input, Modal, Segmentos, Select, SeletorPessoa, Selo, Textarea, Titulo, usePessoas, Vazio } from "@/components/ui";
 
 export default function Organizacao() {
   const { banco, aplicar } = useDados();
@@ -27,7 +28,7 @@ export default function Organizacao() {
   const grupos = [...new Set([...GRUPOS_TAREFAS, ...todas.map((t) => t.grupo)])].filter((g) => lista.some((t) => t.grupo === g));
 
   async function alternar(t: Tarefa) {
-    await aplicar([{ tipo: "upsert", colecao: "tarefas", id: t.id, dados: { ...t, feita: !t.feita } }], t.feita ? "Tarefa reaberta" : "Tarefa concluída ✅");
+    await aplicar([{ tipo: "upsert", colecao: "tarefas", id: t.id, dados: { ...t, feita: !t.feita } }], t.feita ? "Tarefa reaberta" : "Tarefa concluída");
   }
 
   async function adicionarRapida(e: React.FormEvent) {
@@ -41,68 +42,91 @@ export default function Organizacao() {
   return (
     <div className="space-y-4">
       <Titulo
-        titulo="Organização do casamento"
+        area="Casamento"
+        titulo="Organização"
         sub="Checklist de tudo que precisa ser feito"
         acoes={
           <>
-            <Botao variante="secundario" onClick={() => window.print()}>
-              🖨️
+            <Botao variante="secundario" icone={Printer} onClick={() => window.print()} aria-label="Imprimir" />
+            <Botao icone={Plus} onClick={() => setEditar("nova")}>
+              Tarefa
             </Botao>
-            <Botao onClick={() => setEditar("nova")}>+ Tarefa</Botao>
           </>
         }
       />
 
-      <Card>
-        <div className="flex items-baseline justify-between text-sm">
-          <span>
-            <strong className="num text-lg">{feitas}</strong> de {todas.length} tarefas concluídas
-          </span>
-          {atrasadas > 0 && <Selo tom="danger">{atrasadas} atrasada(s)</Selo>}
+      <section className="avoid-break rounded-3xl border border-line bg-surface p-5 shadow-cartao sm:p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="rotulo">Progresso</div>
+            <div className="display mt-1 flex items-baseline gap-2">
+              <span className="num text-4xl font-medium">{feitas}</span>
+              <span className="text-lg text-muted">de {todas.length} tarefas</span>
+            </div>
+          </div>
+          {atrasadas > 0 && (
+            <Selo tom="danger" icone={CircleAlert}>
+              {atrasadas} atrasada(s)
+            </Selo>
+          )}
         </div>
-        <div className="mt-2">
-          <Barra valor={feitas} total={todas.length} cor="bg-ok" altura="h-3" />
+        <div className="mt-4">
+          <Barra valor={feitas} total={todas.length} cor="bg-ok" altura="h-2.5" />
         </div>
-      </Card>
+      </section>
 
       <div className="no-print flex flex-wrap gap-2">
-        <div className="inline-flex rounded-xl border border-line bg-surface p-0.5 text-sm">
-          {(["pendentes", "todas", "feitas"] as const).map((f) => (
-            <button key={f} type="button" onClick={() => setFiltro(f)} className={cx("rounded-[10px] px-3 py-1.5 capitalize", filtro === f ? "bg-brand text-brand-ink" : "text-muted")}>
-              {f}
-            </button>
-          ))}
-        </div>
+        <Segmentos
+          valor={filtro}
+          onChange={setFiltro}
+          opcoes={[
+            { id: "pendentes", nome: "Pendentes" },
+            { id: "todas", nome: "Todas" },
+            { id: "feitas", nome: "Feitas" },
+          ]}
+        />
         <SeletorPessoa valor={quem} onChange={setQuem} comTodos />
       </div>
 
       <form onSubmit={adicionarRapida} className="no-print flex gap-2">
-        <Input value={rapida} onChange={(e) => setRapida(e.target.value)} placeholder="Adicionar tarefa rápida… (ex.: comprar sapato)" />
-        <Botao type="submit" variante="secundario">
+        <Input value={rapida} onChange={(e) => setRapida(e.target.value)} placeholder="Adicionar tarefa rápida (ex.: comprar sapato)" />
+        <Botao type="submit" variante="secundario" icone={Plus}>
           Adicionar
         </Botao>
       </form>
 
       {lista.length === 0 ? (
-        <Vazio>{filtro === "pendentes" ? "Nenhuma tarefa pendente 🎉" : "Nenhuma tarefa aqui."}</Vazio>
+        <Vazio icone={ListChecks}>{filtro === "pendentes" ? "Nenhuma tarefa pendente." : "Nenhuma tarefa aqui."}</Vazio>
       ) : (
         grupos.map((g) => {
           const itens = lista.filter((t) => t.grupo === g);
           const totalGrupo = todas.filter((t) => t.grupo === g);
           return (
-            <Card key={g} titulo={`${g} · ${totalGrupo.filter((t) => t.feita).length}/${totalGrupo.length}`} className="p-0 pt-4 [&>div]:px-4">
+            <Card
+              key={g}
+              titulo={g}
+              acao={
+                <span className="num text-xs text-muted">
+                  {totalGrupo.filter((t) => t.feita).length}/{totalGrupo.length}
+                </span>
+              }
+              className="overflow-hidden p-0 pt-4 sm:p-0 sm:pt-5 [&>div:first-child]:px-4 sm:[&>div:first-child]:px-5"
+            >
               <ul className="divide-y divide-line">
                 {itens.map((t) => {
                   const atrasada = !t.feita && t.prazo && t.prazo < hoje;
                   return (
-                    <li key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <li key={t.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
                       <button
                         type="button"
                         onClick={() => alternar(t)}
                         aria-label={t.feita ? "Reabrir tarefa" : "Concluir tarefa"}
-                        className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 font-bold", t.feita ? "border-ok bg-ok text-white" : "border-line hover:border-ok")}
+                        className={cx(
+                          "grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition active:scale-90",
+                          t.feita ? "border-ok bg-ok text-white" : "border-surface-3 hover:border-ok",
+                        )}
                       >
-                        {t.feita ? "✓" : ""}
+                        {t.feita && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                       </button>
                       <button type="button" onClick={() => setEditar(t)} className="min-w-0 flex-1 text-left">
                         <span className={cx("block text-sm", t.feita && "text-muted line-through")}>{t.titulo}</span>
@@ -172,6 +196,7 @@ function FormTarefa({ t: inicial, aoTerminar }: { t?: Tarefa; aoTerminar: () => 
         {inicial && (
           <Botao
             variante="perigo"
+            icone={Trash2}
             onClick={async () => {
               if (!confirm("Excluir esta tarefa?")) return;
               await aplicar([{ tipo: "delete", colecao: "tarefas", id: inicial.id }], "Tarefa excluída");

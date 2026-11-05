@@ -44,7 +44,7 @@ export function resumoMes(b: Banco, mes: string): ResumoMes {
       if (catMap.get(l.categoriaId)?.casa) casa += l.valor;
     }
   }
-  const outros: Categoria = { id: "?", nome: "Sem categoria", tipo: "despesa", emoji: "❔", casa: false, palavras: "" };
+  const outros: Categoria = { id: "?", nome: "Sem categoria", tipo: "despesa", icone: "outros", casa: false, palavras: "" };
   const porCategoria = [...porCat.entries()]
     .map(([id, total]) => ({ categoria: catMap.get(id) ?? outros, total: r2(total) }))
     .sort((a, b) => b.total - a.total);

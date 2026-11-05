@@ -8,6 +8,23 @@ import { CATEGORIAS_FORNECEDOR, orcamentoInicial } from "@/lib/defaults";
 import { lerPlanilha } from "@/lib/planilha";
 import type { Op } from "@/lib/ops";
 import type { Fornecedor, PagamentoFornecedor } from "@/lib/types";
+import {
+  Banknote,
+  CircleCheckBig,
+  CircleDashed,
+  FileSpreadsheet,
+  HandCoins,
+  Hourglass,
+  NotebookPen,
+  Pencil,
+  PiggyBank,
+  Plus,
+  Receipt,
+  Sparkles,
+  Trash2,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { Barra, Botao, Campo, cx, Input, Modal, Select, Selo, Stat, Textarea, Titulo, Vazio } from "@/components/ui";
 
 export default function Fornecedores() {
@@ -33,34 +50,39 @@ export default function Fornecedores() {
   return (
     <div className="space-y-4">
       <Titulo
+        area="Casamento"
         titulo="Fornecedores"
         sub="O que já dá para pagar com o que vocês têm guardado e o que ainda falta"
         acoes={
           <>
-            <Botao variante="secundario" onClick={() => setImportar(true)}>
-              📥 Importar planilha
+            <Botao variante="secundario" icone={FileSpreadsheet} onClick={() => setImportar(true)}>
+              Importar planilha
             </Botao>
-            <Botao onClick={() => setEditar("novo")}>+ Fornecedor</Botao>
+            <Botao icone={Plus} onClick={() => setEditar("novo")}>
+              Fornecedor
+            </Botao>
           </>
         }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat rotulo="Reserva disponível" cor="bg-guardado" valor={dinheiro(p.disponivel)} detalhe="guardado − pago com a reserva" />
-        <Stat rotulo="Falta pagar (total)" valor={dinheiro(p.totalRestante)} detalhe={`de ${dinheiro(p.totalContratado)} contratados`} />
-        <Stat rotulo="Dá para pagar agora" cor="bg-ok" valor={dinheiro(p.valorDaParaPagar)} detalhe={`${p.daParaPagar.length} fornecedor(es)`} />
+        <Stat icone={PiggyBank} tom="guardado" rotulo="Reserva disponível" valor={dinheiro(p.disponivel)} detalhe="guardado − pago com a reserva" />
+        <Stat icone={Receipt} rotulo="Falta pagar" valor={dinheiro(p.totalRestante)} detalhe={`de ${dinheiro(p.totalContratado)} contratados`} />
+        <Stat icone={CircleCheckBig} tom="ok" rotulo="Dá para pagar agora" valor={dinheiro(p.valorDaParaPagar)} detalhe={`${p.daParaPagar.length} fornecedor(es)`} />
         <Stat
+          icone={Hourglass}
+          tom={p.faltaGuardar > 0 ? "despesa" : "ok"}
           rotulo="Falta guardar"
-          cor="bg-despesa"
           valor={<span className={p.faltaGuardar > 0 ? "text-danger" : "text-ok"}>{dinheiro(p.faltaGuardar)}</span>}
           detalhe={p.sobraDepoisDeQuitar > 0 ? `sobram ${dinheiro(p.sobraDepoisDeQuitar)} depois de quitar tudo` : `${p.faltam.length} fornecedor(es) aguardando`}
-          destaque
         />
       </div>
 
       {!temPlanilha && (
         <div className="no-print flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-brand/30 bg-brand-soft p-3 text-sm">
-          <span>📄 Carregar os 15 itens da planilha “Orçamentos” (Decoração, Fotos/Vídeo, Dia da Noiva…)</span>
+          <span className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-brand" /> Carregar os 15 itens da planilha “Orçamentos” (Decoração, Fotos/Vídeo, Dia da Noiva…)
+          </span>
           <Botao pequeno onClick={carregarPlanilha}>Carregar orçamentos</Botao>
         </div>
       )}
@@ -72,12 +94,15 @@ export default function Fornecedores() {
 
       {banco.fornecedores.length === 0 ? (
         <Vazio
+          icone={HandCoins}
           acao={
             <div className="flex justify-center gap-2">
-              <Botao variante="secundario" onClick={() => setImportar(true)}>
-                📥 Importar planilha
+              <Botao variante="secundario" icone={FileSpreadsheet} onClick={() => setImportar(true)}>
+                Importar planilha
               </Botao>
-              <Botao onClick={() => setEditar("novo")}>+ Fornecedor</Botao>
+              <Botao icone={Plus} onClick={() => setEditar("novo")}>
+                Fornecedor
+              </Botao>
             </div>
           }
         >
@@ -85,12 +110,12 @@ export default function Fornecedores() {
         </Vazio>
       ) : (
         <>
-          <Secao titulo={`✅ Já dá para pagar com o que temos (${p.daParaPagar.length})`} tom="ok" itens={p.daParaPagar} onPagar={setPagar} onEditar={setEditar} vazio="Nenhum fornecedor cabe na reserva atual." />
-          <Secao titulo={`⏳ Ainda falta dinheiro (${p.faltam.length})`} tom="warn" itens={p.faltam} onPagar={setPagar} onEditar={setEditar} vazio="Nenhum — a reserva cobre todos! 🎉" />
+          <Secao titulo="Já dá para pagar com o que temos" icone={CircleCheckBig} tom="ok" itens={p.daParaPagar} onPagar={setPagar} onEditar={setEditar} vazio="Nenhum fornecedor cabe na reserva atual." />
+          <Secao titulo="Ainda falta dinheiro" icone={Hourglass} tom="warn" itens={p.faltam} onPagar={setPagar} onEditar={setEditar} vazio="Nenhum — a reserva cobre todos." />
           {p.semValor.length > 0 && (
-            <Secao titulo={`📝 Sem valor definido (${p.semValor.length})`} tom="neutro" itens={p.semValor} onPagar={setPagar} onEditar={setEditar} vazio="" />
+            <Secao titulo="Sem valor definido" icone={CircleDashed} tom="neutro" itens={p.semValor} onPagar={setPagar} onEditar={setEditar} vazio="" />
           )}
-          {quitados.length > 0 && <Secao titulo={`🎉 Quitados (${quitados.length})`} tom="neutro" itens={quitados} onPagar={setPagar} onEditar={setEditar} vazio="" />}
+          {quitados.length > 0 && <Secao titulo="Quitados" icone={Sparkles} tom="neutro" itens={quitados} onPagar={setPagar} onEditar={setEditar} vazio="" />}
         </>
       )}
 
@@ -109,6 +134,7 @@ export default function Fornecedores() {
 
 function Secao({
   titulo,
+  icone: Icone,
   tom,
   itens,
   onPagar,
@@ -116,6 +142,7 @@ function Secao({
   vazio,
 }: {
   titulo: string;
+  icone: LucideIcon;
   tom: "ok" | "warn" | "neutro";
   itens: FornecedorCalc[];
   onPagar: (c: FornecedorCalc) => void;
@@ -125,7 +152,11 @@ function Secao({
   const hoje = hojeISO();
   return (
     <section>
-      <h2 className={cx("mb-2 text-sm font-semibold", tom === "ok" ? "text-ok" : tom === "warn" ? "text-warn" : "text-muted")}>{titulo}</h2>
+      <h2 className={cx("mb-3 flex items-center gap-2 text-sm font-semibold", tom === "ok" ? "text-ok" : tom === "warn" ? "text-warn" : "text-muted")}>
+        <Icone className="h-4 w-4" />
+        {titulo}
+        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">{itens.length}</span>
+      </h2>
       {itens.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-muted">{vazio}</p>
       ) : (
@@ -134,15 +165,20 @@ function Secao({
             const f = c.fornecedor;
             const vencido = !c.quitado && f.vencimento && f.vencimento < hoje;
             return (
-              <div key={f.id} className="avoid-break rounded-2xl border border-line bg-surface p-4">
+              <div
+                key={f.id}
+                className={cx(
+                  "avoid-break rounded-2xl border border-line border-l-[3px] bg-surface p-4 shadow-cartao",
+                  tom === "ok" ? "border-l-ok" : tom === "warn" ? "border-l-warn" : "border-l-surface-3",
+                )}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <button type="button" onClick={() => onEditar(f)} className="block truncate text-left font-semibold hover:text-brand">
                       {f.nome}
                     </button>
                     <div className="text-xs text-muted">
-                      {f.categoria}
-                      {f.contato && ` · ${f.contato}`}
+                      {[f.categoria !== f.nome ? f.categoria : "", f.contato].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
@@ -175,15 +211,23 @@ function Secao({
                       {c.saldoAntes > 0 && ` (dá p/ adiantar ${dinheiro(c.saldoAntes)})`}
                     </span>
                   )}
-                  {c.situacao === "da_para_pagar" && <span className="text-ok">reserva cobre ✔</span>}
+                  {c.situacao === "da_para_pagar" && (
+                    <span className="inline-flex items-center gap-1 text-ok">
+                      <CircleCheckBig className="h-3.5 w-3.5" /> reserva cobre
+                    </span>
+                  )}
                   {c.situacao === "sem_valor" && <span className="text-muted">toque em Editar para informar o valor</span>}
                 </div>
-                {f.observacao && <p className="mt-2 text-xs text-muted">📝 {f.observacao}</p>}
+                {f.observacao && (
+                  <p className="mt-2 flex gap-1.5 text-xs text-muted">
+                    <NotebookPen className="mt-px h-3.5 w-3.5 shrink-0" /> {f.observacao}
+                  </p>
+                )}
                 <div className="no-print mt-3 flex gap-2">
-                  <Botao pequeno variante={c.quitado ? "secundario" : "primario"} onClick={() => onPagar(c)} className="flex-1">
-                    {c.quitado ? "Ver pagamentos" : "💸 Registrar pagamento"}
+                  <Botao pequeno variante="secundario" icone={c.quitado ? Wallet : Banknote} onClick={() => onPagar(c)} className="flex-1">
+                    {c.quitado ? "Ver pagamentos" : "Registrar pagamento"}
                   </Botao>
-                  <Botao pequeno variante="secundario" onClick={() => onEditar(f)}>
+                  <Botao pequeno variante="secundario" icone={Pencil} onClick={() => onEditar(f)}>
                     Editar
                   </Botao>
                 </div>
@@ -251,6 +295,7 @@ function FormFornecedor({ f: inicial, aoTerminar }: { f?: Fornecedor; aoTerminar
         {inicial && (
           <Botao
             variante="perigo"
+            icone={Trash2}
             onClick={async () => {
               if (!confirm("Excluir este fornecedor e os pagamentos registrados dele?")) return;
               await aplicar(
@@ -316,7 +361,7 @@ function FormPagamento({ c, aoTerminar }: { c: FornecedorCalc; aoTerminar: () =>
             const v = parseValor(valor);
             if (!(v > 0)) return;
             const pg: PagamentoFornecedor = { id: novoId(), fornecedorId: c.fornecedor.id, data, valor: v, observacao: obs.trim(), daReserva };
-            await aplicar([{ tipo: "upsert", colecao: "pagamentosFornecedores", id: pg.id, dados: pg }], "Pagamento registrado 💸");
+            await aplicar([{ tipo: "upsert", colecao: "pagamentosFornecedores", id: pg.id, dados: pg }], "Pagamento registrado");
             aoTerminar();
           }}
         >

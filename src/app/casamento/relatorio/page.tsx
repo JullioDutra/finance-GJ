@@ -3,8 +3,10 @@
 import { useDados } from "@/lib/store";
 import { planoCasamento } from "@/lib/calc";
 import { dataBR, diasEntre, dinheiro, hojeISO, mesAtual } from "@/lib/format";
-import { TIPOS_EVENTO } from "@/lib/defaults";
+import { CalendarDays, ListChecks, Printer, Receipt } from "lucide-react";
 import { Botao, Card, cx, Titulo, usePessoas } from "@/components/ui";
+import { ICONES_EVENTO } from "@/components/icones";
+import { Monograma } from "@/components/shell";
 import { BarraEmpilhada } from "@/components/graficos";
 
 export default function RelatorioCasamento() {
@@ -19,18 +21,26 @@ export default function RelatorioCasamento() {
   return (
     <div className="space-y-4">
       <Titulo
+        area="Casamento"
         titulo="Relatório do casamento"
         sub="Fornecedores, pagamentos, tarefas e agenda — pronto para imprimir"
-        acoes={<Botao onClick={() => window.print()}>🖨️ Imprimir / PDF</Botao>}
+        acoes={
+          <Botao icone={Printer} onClick={() => window.print()}>
+            Imprimir / PDF
+          </Botao>
+        }
       />
 
-      <div className="rounded-2xl border border-line bg-surface p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted">
-              Casamento {banco.config.nomeP1} & {banco.config.nomeP2}
+      <div className="rounded-3xl border border-line bg-surface p-5 shadow-cartao sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div className="flex items-center gap-4">
+            <Monograma grande />
+            <div>
+              <div className="rotulo">
+                Casamento {banco.config.nomeP1} & {banco.config.nomeP2}
+              </div>
+              <div className="display mt-1 text-xl">{data ? `${dataBR(data)} · faltam ${diasEntre(hoje, data)} dias` : "Data a definir"}</div>
             </div>
-            <div className="text-xl font-semibold">{data ? `${dataBR(data)} · faltam ${diasEntre(hoje, data)} dias` : "Data a definir"}</div>
           </div>
           <div className="text-xs text-muted">Gerado em {dataBR(hoje)}</div>
         </div>
@@ -68,7 +78,7 @@ export default function RelatorioCasamento() {
         )}
       </div>
 
-      <Card titulo="Fornecedores (ordem de pagamento)">
+      <Card titulo="Fornecedores (ordem de pagamento)" icone={Receipt}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="text-left text-xs text-muted">
@@ -112,24 +122,31 @@ export default function RelatorioCasamento() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card titulo={`Tarefas pendentes (${pendentes.length})`}>
+        <Card titulo={`Tarefas pendentes (${pendentes.length})`} icone={ListChecks}>
           <ul className="space-y-1 text-sm">
             {pendentes.map((t) => (
               <li key={t.id} className="flex justify-between gap-2">
                 <span>
-                  ☐ {t.titulo} <span className="text-xs text-muted">({t.grupo} · {nome(t.responsavel)})</span>
+                  <span className="mr-1.5 inline-block h-3 w-3 rounded-sm border border-muted align-[-1px]" aria-hidden />
+                  {t.titulo} <span className="text-xs text-muted">({t.grupo} · {nome(t.responsavel)})</span>
                 </span>
                 {t.prazo && <span className={cx("shrink-0 text-xs", t.prazo < hoje ? "text-danger" : "text-muted")}>{dataBR(t.prazo)}</span>}
               </li>
             ))}
-            {!pendentes.length && <li className="text-muted">Tudo feito 🎉</li>}
+            {!pendentes.length && <li className="text-muted">Tudo feito.</li>}
           </ul>
         </Card>
-        <Card titulo="Próximos compromissos">
+        <Card titulo="Próximos compromissos" icone={CalendarDays}>
           <ul className="space-y-1 text-sm">
             {eventos.map((e) => (
-              <li key={e.id}>
-                {TIPOS_EVENTO[e.tipo]?.emoji} <strong>{dataBR(e.data)}</strong> {e.hora} — {e.titulo} {e.local && <span className="text-muted">· {e.local}</span>}
+              <li key={e.id} className="flex items-start gap-2">
+                {(() => {
+                  const I = ICONES_EVENTO[e.tipo] ?? CalendarDays;
+                  return <I className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand" />;
+                })()}
+                <span>
+                <strong>{dataBR(e.data)}</strong> {e.hora} — {e.titulo} {e.local && <span className="text-muted">· {e.local}</span>}
+                </span>
               </li>
             ))}
             {!eventos.length && <li className="text-muted">Nenhum compromisso marcado.</li>}

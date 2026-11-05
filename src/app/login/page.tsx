@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Fingerprint, LockKeyhole } from "lucide-react";
 import { Botao, Input } from "@/components/ui";
+import { Monograma } from "@/components/shell";
 import { CHAVE_NAO_PERGUNTAR, CHAVE_TEM_DIGITAL, cadastrarDigital, digitalDisponivel, entrarComDigital, gravarFlag, lerFlag } from "@/lib/passkey-cliente";
 
 type Etapa = "pin" | "oferecer-digital";
@@ -60,17 +62,22 @@ export default function Login() {
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
       <div className="w-full max-w-xs space-y-4 text-center">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-brand text-xl font-semibold text-brand-ink">G&J</div>
-        <h1 className="text-xl font-semibold">Finanças G&J</h1>
+        <div className="pb-2">
+          <Monograma grande />
+          <div className="mx-auto mt-4 h-px w-12 bg-gold/50" aria-hidden />
+          <h1 className="mt-4 text-sm text-muted">Finanças e casamento</h1>
+        </div>
 
         {etapa === "oferecer-digital" ? (
           <div className="space-y-3">
-            <div className="text-4xl">🔐</div>
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-brand-soft text-brand">
+              <Fingerprint className="h-7 w-7" strokeWidth={1.8} />
+            </span>
             <p className="text-sm">
               Quer entrar com <strong>digital / Face ID</strong> nas próximas vezes neste aparelho?
             </p>
             {erro && <p className="text-sm text-danger">{erro}</p>}
-            <Botao className="w-full" onClick={ativarDigital} disabled={carregando}>
+            <Botao className="w-full" icone={Fingerprint} onClick={ativarDigital} disabled={carregando}>
               {carregando ? "Aguardando…" : "Ativar digital / Face ID"}
             </Botao>
             <Botao
@@ -88,8 +95,8 @@ export default function Login() {
         ) : (
           <>
             {temDigital && (
-              <Botao className="w-full py-3.5 text-base" onClick={digital} disabled={carregando} variante={jaCadastrou ? "primario" : "secundario"}>
-                🔐 Entrar com digital / Face ID
+              <Botao className="w-full py-3.5 text-base" icone={Fingerprint} onClick={digital} disabled={carregando} variante={jaCadastrou ? "primario" : "secundario"}>
+                Entrar com digital / Face ID
               </Botao>
             )}
             <form onSubmit={entrar} className="space-y-3">
@@ -109,7 +116,7 @@ export default function Login() {
                 aria-label="PIN"
               />
               {erro && <p className="text-sm text-danger">{erro}</p>}
-              <Botao type="submit" className="w-full" disabled={carregando || !pin} variante={jaCadastrou && temDigital ? "secundario" : "primario"}>
+              <Botao type="submit" className="w-full" icone={LockKeyhole} disabled={carregando || !pin} variante={jaCadastrou && temDigital ? "secundario" : "primario"}>
                 {carregando ? "Entrando…" : "Entrar"}
               </Botao>
             </form>

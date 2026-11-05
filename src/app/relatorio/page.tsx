@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useDados } from "@/lib/store";
 import { comparativoCategorias, contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "@/lib/calc";
 import { dataBR, dinheiro, hojeISO, mesAtual, mesesAte, nomeMes, pct, somarMeses } from "@/lib/format";
+import { ChartColumn, CircleCheckBig, Heart, ReceiptText, Scale, Table2, Users, Printer, Tags, Check } from "lucide-react";
 import { Botao, Card, cx, Input, Titulo, usePessoas } from "@/components/ui";
+import { RotuloCategoria } from "@/components/icones";
+import { Monograma } from "@/components/shell";
 import { BarrasMensais, Ranking } from "@/components/graficos";
 
 export default function Relatorio() {
@@ -23,11 +26,11 @@ export default function Relatorio() {
   );
   const sobra = tot.receitas - tot.despesas - tot.guardado;
 
-  const porCat = new Map<string, { nome: string; total: number }>();
+  const porCat = new Map<string, { categoria: (typeof resumos)[number]["porCategoria"][number]["categoria"]; total: number }>();
   for (const r of resumos)
     for (const c of r.porCategoria) {
       const k = c.categoria.id;
-      porCat.set(k, { nome: `${c.categoria.emoji} ${c.categoria.nome}`, total: (porCat.get(k)?.total ?? 0) + c.total });
+      porCat.set(k, { categoria: c.categoria, total: (porCat.get(k)?.total ?? 0) + c.total });
     }
   const categorias = [...porCat.entries()].sort((a, b) => b[1].total - a[1].total);
 
@@ -43,11 +46,12 @@ export default function Relatorio() {
   return (
     <div className="space-y-4">
       <Titulo
+        area="Finanças"
         titulo="Relatório financeiro"
         sub="Escolha o período e imprima ou salve em PDF"
         acoes={
-          <Botao onClick={() => window.print()} className="no-print">
-            🖨️ Imprimir / PDF
+          <Botao icone={Printer} onClick={() => window.print()} className="no-print">
+            Imprimir / PDF
           </Botao>
         }
       />
@@ -78,11 +82,16 @@ export default function Relatorio() {
       </Card>
 
       {/* Cabeçalho impresso */}
-      <div className="rounded-2xl border border-line bg-surface p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-muted">Relatório financeiro · {banco.config.nomeP1} & {banco.config.nomeP2}</div>
-            <div className="text-xl font-semibold">{periodo}</div>
+      <div className="rounded-3xl border border-line bg-surface p-5 shadow-cartao sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div className="flex items-center gap-4">
+            <Monograma grande />
+            <div>
+              <div className="rotulo">
+                Relatório financeiro · {banco.config.nomeP1} & {banco.config.nomeP2}
+              </div>
+              <div className="display mt-1 text-xl">{periodo}</div>
+            </div>
           </div>
           <div className="text-xs text-muted">Gerado em {dataBR(hojeISO())}</div>
         </div>
@@ -96,7 +105,7 @@ export default function Relatorio() {
           ].map(([n, v, c]) => (
             <div key={n as string}>
               <div className="text-xs text-muted">{n}</div>
-              <div className={cx("num text-lg font-semibold", c as string)}>{dinheiro(v as number)}</div>
+              <div className={cx("display num text-xl font-medium", c as string)}>{dinheiro(v as number)}</div>
             </div>
           ))}
         </div>
@@ -109,7 +118,7 @@ export default function Relatorio() {
       </div>
 
       {!unico && (
-        <Card titulo="Evolução no período">
+        <Card titulo="Evolução no período" icone={ChartColumn}>
           <BarrasMensais
             rotulos={meses.map((m) => nomeMes(m, true))}
             series={[
@@ -121,7 +130,7 @@ export default function Relatorio() {
         </Card>
       )}
 
-      <Card titulo="Mês a mês">
+      <Card titulo="Mês a mês" icone={Table2}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead className="text-left text-xs text-muted">
@@ -156,16 +165,16 @@ export default function Relatorio() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card titulo="Gastos por categoria">
+        <Card titulo="Gastos por categoria" icone={Tags}>
           {categorias.length ? (
-            <Ranking total={tot.despesas} itens={categorias.map(([id, c]) => ({ chave: id, rotulo: c.nome, valor: c.total }))} />
+            <Ranking total={tot.despesas} itens={categorias.map(([id, c]) => ({ chave: id, rotulo: <RotuloCategoria categoria={c.categoria} />, valor: c.total }))} />
           ) : (
             <p className="text-sm text-muted">Sem gastos no período.</p>
           )}
         </Card>
 
         {unico ? (
-          <Card titulo={`Comparativo com ${nomeMes(somarMeses(de, -1))}`}>
+          <Card titulo={`Comparativo com ${nomeMes(somarMeses(de, -1))}`} icone={Scale}>
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted">
                 <tr>
@@ -179,7 +188,7 @@ export default function Relatorio() {
                 {comparativo.map((c) => (
                   <tr key={c.categoria.id} className="border-t border-line">
                     <td className="py-1.5">
-                      {c.categoria.emoji} {c.categoria.nome}
+                      <RotuloCategoria categoria={c.categoria} />
                     </td>
                     <td className="py-1.5 text-right text-muted">{dinheiro(c.anterior)}</td>
                     <td className="py-1.5 text-right">{dinheiro(c.atual)}</td>
@@ -194,7 +203,7 @@ export default function Relatorio() {
             {!comparativo.length && <p className="text-sm text-muted">Sem dados para comparar.</p>}
           </Card>
         ) : (
-          <Card titulo="Por pessoa no período">
+          <Card titulo="Por pessoa no período" icone={Users}>
             <PorPessoa resumos={resumos} nome={nome} />
           </Card>
         )}
@@ -202,14 +211,17 @@ export default function Relatorio() {
 
       {unico && (
         <div className="grid gap-4 md:grid-cols-2">
-          <Card titulo={`Contas do dia ${banco.config.diaPadraoContas}`}>
+          <Card titulo={`Contas do dia ${banco.config.diaPadraoContas}`} icone={CircleCheckBig}>
             {contas.length ? (
               <>
                 <ul className="space-y-1 text-sm">
                   {contas.map((c) => (
                     <li key={c.conta.id} className="flex justify-between gap-2">
-                      <span>
-                        {c.pago ? "☑" : "☐"} {c.conta.nome}
+                      <span className="inline-flex items-center gap-2">
+                        <span className={cx("grid h-3.5 w-3.5 place-items-center rounded-sm border", c.pago ? "border-ok bg-ok text-white" : "border-muted")}>
+                          {c.pago && <Check className="h-2.5 w-2.5" strokeWidth={3.5} />}
+                        </span>
+                        {c.conta.nome}
                       </span>
                       <span className="num">{dinheiro(c.valor)}</span>
                     </li>
@@ -223,13 +235,13 @@ export default function Relatorio() {
               <p className="text-sm text-muted">Nenhuma conta fixa cadastrada.</p>
             )}
           </Card>
-          <Card titulo="Por pessoa">
+          <Card titulo="Por pessoa" icone={Users}>
             <PorPessoa resumos={resumos} nome={nome} />
           </Card>
         </div>
       )}
 
-      <Card titulo="💍 Reserva do casamento (hoje)">
+      <Card titulo="Reserva do casamento (hoje)" icone={Heart}>
         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <div>
             <div className="text-xs text-muted">Total guardado</div>
@@ -251,7 +263,7 @@ export default function Relatorio() {
       </Card>
 
       {comLista && (
-        <Card titulo={`Lançamentos (${lancs.length})`} className="print-break">
+        <Card titulo={`Lançamentos (${lancs.length})`} icone={ReceiptText} className="print-break">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-xs">
               <thead className="text-left text-muted">

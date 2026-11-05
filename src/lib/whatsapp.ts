@@ -106,7 +106,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
 
   if (["resumo", "saldo", "mes", "extrato"].includes(norm)) {
     const r = resumoMes(b, mes);
-    const top = r.porCategoria.slice(0, 3).map((c) => `• ${c.categoria.emoji} ${c.categoria.nome}: ${dinheiro(c.total)}`).join("\n");
+    const top = r.porCategoria.slice(0, 3).map((c) => `• ${c.categoria.nome}: ${dinheiro(c.total)}`).join("\n");
     return {
       ok: true,
       ops: [],
@@ -222,7 +222,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     ops: [op],
     resposta:
       `✅ *${rotulo} registrado*\n` +
-      `${categoria.emoji} ${categoria.nome} — *${dinheiro(valor)}*\n` +
+      `${categoria.nome} — *${dinheiro(valor)}*\n` +
       `📝 ${descricao || categoria.nome}\n` +
       `👤 ${nomePessoa(b, pessoa)} · 📅 ${data.split("-").reverse().join("/")}`,
   };

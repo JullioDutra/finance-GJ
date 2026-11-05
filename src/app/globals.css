@@ -1,48 +1,67 @@
 @import "tailwindcss";
 
-/* ============ Tokens de cor (claro / escuro) ============ */
+/* =========================================================
+   Identidade G&J
+   Papel marfim + tinta quente + vinho (marca) + champanhe (casamento).
+   As cores dos gráficos (receita/gasto/guardado) seguem a paleta validada
+   para daltonismo e não são reaproveitadas como cor de status.
+   ========================================================= */
 :root {
-  --bg: #f6f4f1;
-  --surface: #ffffff;
-  --surface-2: #f1eee9;
-  --ink: #1d1c1a;
-  --muted: #64615b;
-  --line: #e4e0d8;
-  --brand: #8b3a5e;
-  --brand-ink: #ffffff;
-  --brand-soft: #f6e8ee;
+  --bg: #f6f1ea;
+  --surface: #fffdfa;
+  --surface-2: #f1ebe3;
+  --surface-3: #e9e1d6;
+  --ink: #241c20;
+  --muted: #6f6469;
+  --line: #e6ddd2;
+  --brand: #7b2d4e;
+  --brand-2: #5e2039;
+  --brand-ink: #fff8f3;
+  --brand-soft: #f4e6ec;
+  --hero: #7b2d4e;
+  --hero-ink: #fff8f3;
+  --gold: #a87b3f;
+  --gold-soft: #f5ecdd;
   --receita: #2a78d6;
   --despesa: #eb6834;
   --guardado: #1baf7a;
-  --ok: #157f3b;
-  --ok-soft: #e4f4e9;
-  --warn: #a35a00;
-  --warn-soft: #fdf1dc;
-  --danger: #c0302e;
-  --danger-soft: #fbe6e5;
+  --ok: #1d7a43;
+  --ok-soft: #e3f2e8;
+  --warn: #9a5b00;
+  --warn-soft: #fbefd9;
+  --danger: #b8322f;
+  --danger-soft: #fae5e3;
+  --sombra: 0 1px 2px rgb(60 30 40 / 0.04), 0 6px 24px -12px rgb(60 30 40 / 0.12);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #141413;
-    --surface: #1d1d1b;
-    --surface-2: #262624;
-    --ink: #f0efec;
-    --muted: #b0aea6;
-    --line: #34332f;
-    --brand: #d0749a;
-    --brand-ink: #1a0f14;
-    --brand-soft: #3a2230;
+    --bg: #161214;
+    --surface: #1f1a1c;
+    --surface-2: #2a2326;
+    --surface-3: #352c30;
+    --ink: #f3ece6;
+    --muted: #b3a7a9;
+    --line: #382f33;
+    --brand: #d9819f;
+    --brand-2: #e8a3bb;
+    --brand-ink: #1c0f15;
+    --brand-soft: #3a2430;
+    --hero: #4d1d33;
+    --hero-ink: #fbeef2;
+    --gold: #d9b37a;
+    --gold-soft: #3a3020;
     --receita: #3987e5;
     --despesa: #d95926;
     --guardado: #199e70;
-    --ok: #4cc276;
+    --ok: #58c27f;
     --ok-soft: #1c3324;
-    --warn: #e0a548;
+    --warn: #e2a84d;
     --warn-soft: #3a2d17;
     --danger: #ef6b69;
     --danger-soft: #3d1d1c;
+    --sombra: 0 1px 2px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
 }
@@ -51,12 +70,18 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
   --color-brand-ink: var(--brand-ink);
   --color-brand-soft: var(--brand-soft);
+  --color-hero: var(--hero);
+  --color-hero-ink: var(--hero-ink);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
   --color-receita: var(--receita);
   --color-despesa: var(--despesa);
   --color-guardado: var(--guardado);
@@ -67,6 +92,8 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
+  --shadow-cartao: var(--sombra);
 }
 
 html,
@@ -82,6 +109,22 @@ body {
 
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+/* números e títulos de destaque na serifada */
+.display {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+
+/* rótulo de seção: pequeno, espaçado */
+.rotulo {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 input,
@@ -107,6 +150,7 @@ textarea {
     --ink: #000000;
     --muted: #444444;
     --line: #cccccc;
+    --sombra: none;
     color-scheme: light;
   }
   body {
@@ -127,6 +171,7 @@ textarea {
   main {
     padding: 0 !important;
     max-width: none !important;
+    margin: 0 !important;
   }
   * {
     -webkit-print-color-adjust: exact;

@@ -7,21 +7,43 @@ import { processarMensagem, AJUDA_WHATSAPP } from "@/lib/whatsapp";
 import type { Op } from "@/lib/ops";
 import type { Banco, Categoria, Configuracoes, PessoaId, TipoLancamento } from "@/lib/types";
 import { COLECOES } from "@/lib/types";
+import {
+  Check,
+  Cloud,
+  Database,
+  Download,
+  Fingerprint,
+  HardDrive,
+  House,
+  LogOut,
+  MessageCircle,
+  Plus,
+  Smartphone,
+  Tags,
+  Trash2,
+  Upload,
+  UsersRound,
+} from "lucide-react";
 import { Botao, Campo, Card, cx, Input, Modal, Select, SeletorPessoa, Selo, Titulo } from "@/components/ui";
+import { ChipCategoria, ICONES_CATEGORIA, iconeDaCategoria } from "@/components/icones";
 import { cadastrarDigital, digitalDisponivel } from "@/lib/passkey-cliente";
 import { dataBR } from "@/lib/format";
 
 export default function Ajustes() {
   return (
-    <div className="space-y-4">
-      <Titulo titulo="Ajustes" sub="Dados do casal, categorias, WhatsApp, instalação e backup" />
-      <Status />
-      <Acesso />
+    <div className="space-y-5">
+      <Titulo titulo="Ajustes" sub="Dados do casal, acesso, categorias, instalação e backup" />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Status />
+        <Acesso />
+      </div>
       <ConfigCasal />
-      <WhatsApp />
       <Categorias />
-      <Instalar />
-      <Backup />
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Instalar />
+        <Backup />
+      </div>
+      <WhatsApp />
     </div>
   );
 }
@@ -29,15 +51,19 @@ export default function Ajustes() {
 function Status() {
   const { modo } = useDados();
   return (
-    <Card titulo="Onde os dados ficam salvos">
+    <Card titulo="Onde os dados ficam salvos" icone={Database}>
       {modo === "nuvem" ? (
         <p className="text-sm">
-          <Selo tom="ok">☁️ Nuvem (banco de dados)</Selo> — vocês dois veem os mesmos dados em qualquer aparelho, e o WhatsApp lança direto aqui.
+          <Selo tom="ok" icone={Cloud}>
+            Nuvem
+          </Selo> — vocês dois veem os mesmos dados em qualquer aparelho, e o WhatsApp lança direto aqui.
         </p>
       ) : (
         <div className="space-y-2 text-sm">
           <p>
-            <Selo tom="warn">📱 Modo local</Selo> — os dados estão salvos só neste navegador. Para sincronizar entre vocês dois e receber mensagens do WhatsApp, configure o banco:
+            <Selo tom="warn" icone={HardDrive}>
+              Modo local
+            </Selo> — os dados estão salvos só neste navegador. Para sincronizar entre vocês dois e receber mensagens do WhatsApp, configure o banco:
           </p>
           <ol className="list-decimal space-y-1 pl-5 text-muted">
             <li>
@@ -79,14 +105,17 @@ function Acesso() {
 
   if (modo !== "nuvem") return null;
   return (
-    <Card titulo="🔐 Acesso">
+    <Card titulo="Acesso" icone={Fingerprint}>
       <p className="mb-3 text-sm text-muted">Vocês ficam conectados por 1 ano em cada aparelho. Com a digital / Face ID ativada, não precisa nem digitar o PIN.</p>
       {aparelhos && aparelhos.length > 0 && (
         <ul className="mb-3 divide-y divide-line rounded-xl border border-line text-sm">
           {aparelhos.map((a) => (
-            <li key={a.id} className="flex items-center justify-between gap-2 px-3 py-2">
-              <span>
-                📱 {a.nome}
+            <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-2 text-muted">
+                <Smartphone className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                {a.nome}
                 <span className="block text-xs text-muted">
                   ativado em {dataBR(a.criadoEm.slice(0, 10))}
                   {a.ultimoUso && ` · último uso ${dataBR(a.ultimoUso.slice(0, 10))}`}
@@ -112,12 +141,13 @@ function Acesso() {
         {suporta ? (
           <Botao
             disabled={ocupado}
+            icone={Fingerprint}
             onClick={async () => {
               setOcupado(true);
               const r = await cadastrarDigital();
               setOcupado(false);
               if (r.ok) {
-                aviso("Digital / Face ID ativada neste aparelho ✅");
+                aviso("Digital / Face ID ativada neste aparelho");
                 carregar();
               } else aviso(r.erro, "erro");
             }}
@@ -129,6 +159,7 @@ function Acesso() {
         )}
         <Botao
           variante="fantasma"
+          icone={LogOut}
           onClick={async () => {
             await fetch("/api/login", { method: "DELETE" });
             window.location.replace("/login");
@@ -156,7 +187,7 @@ function ConfigCasal() {
   };
 
   return (
-    <Card titulo="Casal e casamento">
+    <Card titulo="Casal e casamento" icone={UsersRound}>
       <form
         className="space-y-4"
         onSubmit={async (e) => {
@@ -223,8 +254,10 @@ function WhatsApp() {
   }
 
   return (
-    <Card titulo="💬 WhatsApp">
-      <div className="grid gap-4 lg:grid-cols-2">
+    <Card titulo="WhatsApp" icone={MessageCircle} acao={<Selo>pausado</Selo>}>
+      <details>
+        <summary className="cursor-pointer text-sm text-muted">Ver instruções e simulador</summary>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <div className="space-y-2 text-sm">
           <p>Mandem mensagens como estas para o número conectado e o lançamento cai direto no sistema:</p>
           <pre className="whitespace-pre-wrap rounded-xl bg-surface-2 p-3 text-xs">{AJUDA_WHATSAPP.replace(/\*/g, "").replace(/`/g, "")}</pre>
@@ -245,7 +278,7 @@ function WhatsApp() {
                 <strong>Antes de testar</strong>, preencham os WhatsApps de vocês em “Casal e casamento” acima — o robô <strong>só responde vocês dois</strong>{" "}
                 (mensagens de outras pessoas são ignoradas).
               </li>
-              <li>Mandem mensagem para o número conectado na instância. O robô responde confirmando com 🤖.</li>
+              <li>Mandem mensagem para o número conectado na instância. O robô responde confirmando.</li>
               <li>
                 Para usar num <strong>grupo</strong> (ex.: “Finanças G&J” com vocês e o número da instância), mandem <code>ativar grupo</code> nele. Outros grupos
                 são ignorados.
@@ -253,8 +286,8 @@ function WhatsApp() {
               <li>Se o número da instância for de um de vocês, dá para lançar na conversa “comigo mesmo”.</li>
             </ol>
           </details>
-          {banco.config.grupoWhatsapp && <p className="text-xs text-ok">✅ Grupo do WhatsApp ativado.</p>}
-          {modo !== "nuvem" && <p className="text-xs text-warn">⚠️ O WhatsApp só funciona com o banco de dados (Neon) conectado.</p>}
+          {banco.config.grupoWhatsapp && <p className="text-xs text-ok">Grupo do WhatsApp ativado.</p>}
+          {modo !== "nuvem" && <p className="text-xs text-warn">O WhatsApp só funciona com o banco de dados conectado.</p>}
         </div>
         <form onSubmit={enviar} className="space-y-2">
           <div className="text-xs font-medium text-muted">Simulador — teste (e lance de verdade) como se fosse pelo WhatsApp</div>
@@ -266,6 +299,7 @@ function WhatsApp() {
           {resposta && <pre className="whitespace-pre-wrap rounded-xl bg-ok-soft p-3 text-xs text-ink">{resposta.replace(/\*/g, "")}</pre>}
         </form>
       </div>
+      </details>
     </Card>
   );
 }
@@ -280,24 +314,41 @@ function Categorias() {
   const { banco } = useDados();
   const [editar, setEditar] = useState<Categoria | "nova" | null>(null);
   return (
-    <Card titulo="Categorias" acao={<Botao pequeno onClick={() => setEditar("nova")}>+ Categoria</Botao>}>
-      <p className="mb-3 text-xs text-muted">
-        🏠 = entra no “custo da casa”. As palavras-chave ajudam o WhatsApp a escolher a categoria certa (ex.: “uber” → Transporte).
+    <Card
+      titulo="Categorias"
+      icone={Tags}
+      acao={
+        <Botao pequeno icone={Plus} onClick={() => setEditar("nova")}>
+          Categoria
+        </Botao>
+      }
+    >
+      <p className="mb-4 flex items-center gap-1.5 text-xs text-muted">
+        <House className="h-3.5 w-3.5" /> = entra no “custo da casa”. Toque numa categoria para editar nome, ícone e palavras-chave.
       </p>
-      {TIPOS.map((t) => (
-        <div key={t.id} className="mb-3">
-          <div className="mb-1 text-xs font-semibold uppercase text-muted">{t.nome}</div>
-          <div className="flex flex-wrap gap-1.5">
-            {banco.categorias
-              .filter((c) => c.tipo === t.id)
-              .map((c) => (
-                <button key={c.id} type="button" onClick={() => setEditar(c)} className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-brand">
-                  {c.emoji} {c.nome} {c.casa && "🏠"}
-                </button>
-              ))}
+      <div className="grid gap-5 md:grid-cols-3">
+        {TIPOS.map((t) => (
+          <div key={t.id}>
+            <div className="rotulo mb-2">{t.nome}</div>
+            <div className="space-y-1">
+              {banco.categorias
+                .filter((c) => c.tipo === t.id)
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setEditar(c)}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left text-sm transition hover:bg-surface-2"
+                  >
+                    <ChipCategoria categoria={c} tamanho="sm" />
+                    <span className="flex-1 truncate">{c.nome}</span>
+                    {c.casa && <House className="h-3.5 w-3.5 text-muted" aria-label="custo da casa" />}
+                  </button>
+                ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
       <Modal aberto={editar !== null} aoFechar={() => setEditar(null)} titulo={editar === "nova" ? "Nova categoria" : "Editar categoria"}>
         {editar && <FormCategoria c={editar === "nova" ? undefined : editar} aoTerminar={() => setEditar(null)} />}
       </Modal>
@@ -307,7 +358,8 @@ function Categorias() {
 
 function FormCategoria({ c: inicial, aoTerminar }: { c?: Categoria; aoTerminar: () => void }) {
   const { banco, aplicar } = useDados();
-  const [c, setC] = useState<Categoria>(inicial ?? { id: novoId(), nome: "", tipo: "despesa", emoji: "📦", casa: false, palavras: "" });
+  const [c, setC] = useState<Categoria>(inicial ?? { id: novoId(), nome: "", tipo: "despesa", icone: "outros", casa: false, palavras: "" });
+  const iconeAtual = iconeDaCategoria(c);
   const set = <K extends keyof Categoria>(k: K, v: Categoria[K]) => setC((x) => ({ ...x, [k]: v }));
   const emUso = inicial ? banco.lancamentos.some((l) => l.categoriaId === inicial.id) || banco.contas.some((x) => x.categoriaId === inicial.id) : false;
   return (
@@ -320,13 +372,27 @@ function FormCategoria({ c: inicial, aoTerminar }: { c?: Categoria; aoTerminar: 
         aoTerminar();
       }}
     >
-      <div className="grid grid-cols-[5rem_1fr] gap-3">
-        <Campo rotulo="Emoji">
-          <Input value={c.emoji} onChange={(e) => set("emoji", e.target.value)} className="text-center" />
-        </Campo>
-        <Campo rotulo="Nome">
-          <Input value={c.nome} onChange={(e) => set("nome", e.target.value)} required autoFocus={!inicial} />
-        </Campo>
+      <Campo rotulo="Nome">
+        <Input value={c.nome} onChange={(e) => set("nome", e.target.value)} required autoFocus={!inicial} />
+      </Campo>
+      <div>
+        <span className="mb-1.5 block text-xs font-medium text-muted">Ícone</span>
+        <div className="grid grid-cols-8 gap-1.5">
+          {Object.entries(ICONES_CATEGORIA).map(([nome, Icone]) => (
+            <button
+              key={nome}
+              type="button"
+              onClick={() => set("icone", nome)}
+              aria-label={nome}
+              className={cx(
+                "grid aspect-square place-items-center rounded-xl border transition",
+                Icone === iconeAtual ? "border-brand bg-brand-soft text-brand" : "border-line text-muted hover:text-ink",
+              )}
+            >
+              <Icone className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
       </div>
       <Campo rotulo="Tipo">
         <Select value={c.tipo} onChange={(e) => set("tipo", e.target.value as TipoLancamento)}>
@@ -342,14 +408,15 @@ function FormCategoria({ c: inicial, aoTerminar }: { c?: Categoria; aoTerminar: 
       </Campo>
       {c.tipo === "despesa" && (
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={c.casa} onChange={(e) => set("casa", e.target.checked)} className="h-5 w-5" />
-          🏠 Faz parte do custo da casa
+          <input type="checkbox" checked={c.casa} onChange={(e) => set("casa", e.target.checked)} className="h-5 w-5 accent-[var(--brand)]" />
+          Faz parte do custo da casa
         </label>
       )}
       <div className="flex gap-2">
         {inicial && (
           <Botao
             variante="perigo"
+            icone={Trash2}
             disabled={emUso}
             title={emUso ? "Categoria em uso por lançamentos ou contas" : ""}
             onClick={async () => {
@@ -386,14 +453,22 @@ function Instalar() {
     return () => window.removeEventListener("beforeinstallprompt", h);
   }, []);
   return (
-    <Card titulo="📲 Instalar no celular">
+    <Card titulo="Instalar no celular" icone={Smartphone}>
       {instalado ? (
-        <p className="text-sm text-ok">✅ O app já está instalado neste aparelho.</p>
+        <p className="flex items-center gap-1.5 text-sm text-ok">
+          <Check className="h-4 w-4" /> O app já está instalado neste aparelho.
+        </p>
       ) : (
         <div className="space-y-2 text-sm">
-          {evento && <Botao onClick={() => evento.prompt()}>Instalar agora</Botao>}
+          {evento && (
+            <Botao icone={Download} onClick={() => evento.prompt()}>
+              Instalar agora
+            </Botao>
+          )}
           <p>
-            <strong>iPhone (Safari):</strong> toque em <span className="rounded bg-surface-2 px-1">Compartilhar ⬆️</span> → <strong>Adicionar à Tela de Início</strong>.
+            <strong>iPhone (Safari):</strong> toque em <span className="inline-flex items-center gap-1 rounded bg-surface-2 px-1.5">
+              Compartilhar <Upload className="h-3 w-3" />
+            </span> → <strong>Adicionar à Tela de Início</strong>.
           </p>
           <p>
             <strong>Android (Chrome):</strong> menu <span className="rounded bg-surface-2 px-1">⋮</span> → <strong>Instalar app</strong> (ou “Adicionar à tela inicial”).
@@ -436,13 +511,14 @@ function Backup() {
   }
 
   return (
-    <Card titulo="💾 Backup e conta">
+    <Card titulo="Backup" icone={HardDrive}>
+      <p className="mb-3 text-sm text-muted">Baixe uma cópia de tudo (arquivo .json) de vez em quando, por segurança.</p>
       <div className="flex flex-wrap gap-2">
-        <Botao variante="secundario" onClick={exportar}>
-          ⬇️ Exportar backup
+        <Botao variante="secundario" icone={Download} onClick={exportar}>
+          Exportar backup
         </Botao>
-        <label className={cx("inline-flex cursor-pointer items-center rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium hover:bg-surface-2")}>
-          ⬆️ Importar backup
+        <label className={cx("inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-surface px-4 py-2.5 text-sm font-medium hover:bg-surface-2")}>
+          <Upload className="h-4 w-4" /> Importar backup
           <input type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
         </label>
       </div>

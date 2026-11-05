@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { dinheiro, dinheiroCurto } from "@/lib/format";
-import { cx } from "./ui";
+import { cx } from "./ui-base";
 
 /** Mede a largura real do container, para o texto do gráfico ficar sempre legível. */
 function useLargura(padrao = 640) {
