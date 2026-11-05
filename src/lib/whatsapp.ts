@@ -78,6 +78,11 @@ export function nomePessoa(b: Banco, p: PessoaId): string {
 
 /** Descobre quem mandou pelo número (últimos 8 dígitos); se não achar, tenta pelo nome do perfil. */
 export function pessoaPorTelefone(b: Banco, telefone: string, nomePerfil = ""): PessoaId {
+  return identificarPessoa(b, telefone, nomePerfil) ?? "casal";
+}
+
+/** Igual a pessoaPorTelefone, mas devolve null quando não é nenhum de vocês dois. */
+export function identificarPessoa(b: Banco, telefone: string, nomePerfil = ""): "p1" | "p2" | null {
   const fim = (s: string) => s.replace(/\D/g, "").slice(-8);
   const t = fim(telefone);
   if (t && fim(b.config.telefoneP1) === t) return "p1";
@@ -87,7 +92,7 @@ export function pessoaPorTelefone(b: Banco, telefone: string, nomePerfil = ""): 
     if (semAcento(b.config.nomeP1).startsWith(n) || n.startsWith(semAcento(b.config.nomeP1))) return "p1";
     if (semAcento(b.config.nomeP2).startsWith(n) || n.startsWith(semAcento(b.config.nomeP2))) return "p2";
   }
-  return "casal";
+  return null;
 }
 
 export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao: PessoaId, hoje: string): ResultadoMensagem {

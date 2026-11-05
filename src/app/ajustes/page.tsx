@@ -150,10 +150,19 @@ function WhatsApp() {
               <li>
                 Eventos: marque só <strong>MESSAGES_UPSERT</strong>. “Webhook by Events” e “Base64” desligados.
               </li>
-              <li>Mandem mensagem para o número conectado na instância (ou num grupo com ele). O robô responde confirmando com 🤖.</li>
-              <li>Para saber quem mandou, preencham os WhatsApps de vocês em “Casal e casamento” acima.</li>
+              <li>
+                <strong>Antes de testar</strong>, preencham os WhatsApps de vocês em “Casal e casamento” acima — o robô <strong>só responde vocês dois</strong>{" "}
+                (mensagens de outras pessoas são ignoradas).
+              </li>
+              <li>Mandem mensagem para o número conectado na instância. O robô responde confirmando com 🤖.</li>
+              <li>
+                Para usar num <strong>grupo</strong> (ex.: “Finanças G&J” com vocês e o número da instância), mandem <code>ativar grupo</code> nele. Outros grupos
+                são ignorados.
+              </li>
+              <li>Se o número da instância for de um de vocês, dá para lançar na conversa “comigo mesmo”.</li>
             </ol>
           </details>
+          {banco.config.grupoWhatsapp && <p className="text-xs text-ok">✅ Grupo do WhatsApp ativado.</p>}
           {modo !== "nuvem" && <p className="text-xs text-warn">⚠️ O WhatsApp só funciona com o banco de dados (Neon) conectado.</p>}
         </div>
         <form onSubmit={enviar} className="space-y-2">

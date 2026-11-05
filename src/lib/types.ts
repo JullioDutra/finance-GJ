@@ -17,6 +17,7 @@ export interface Configuracoes {
   diaPadraoContas: number; // dia do mês das contas fixas (6)
   telefoneP1: string; // para identificar quem mandou no WhatsApp (só dígitos)
   telefoneP2: string;
+  grupoWhatsapp?: string; // jid do grupo do WhatsApp ativado com "ativar grupo"
 }
 
 export interface Categoria {

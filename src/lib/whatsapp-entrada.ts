@@ -13,6 +13,9 @@ export interface Recebida {
   instancia?: string;
   servidor?: string;
   apikey?: string;
+  /** mensagem enviada pelo próprio número da instância (conversa "comigo mesmo") */
+  propria?: boolean;
+  grupo?: boolean;
 }
 
 type Json = Record<string, unknown>;
@@ -62,6 +65,8 @@ function evolution(body: Json): Recebida | "ignorar" | null {
     instancia: str(body.instance),
     servidor: str(body.server_url),
     apikey: str(body.apikey),
+    propria: fromMe,
+    grupo,
   };
 }
 

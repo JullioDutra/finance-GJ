@@ -54,8 +54,9 @@ npm run testar
    https://financas-gj.vercel.app/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN
    ```
 2. Eventos: só **MESSAGES_UPSERT** (Webhook by Events e Base64 desligados — se ligar “by events”, também funciona).
-3. Cadastrem os números de vocês em **Ajustes** para o sistema saber quem mandou (se não achar o número, tenta pelo nome do perfil).
-4. Mandem mensagens para o número da instância (ou num grupo com ele). As respostas do robô começam com 🤖.
+3. Cadastrem os números de vocês em **Ajustes**. O robô **só atende vocês dois** (pelo número ou, se não achar, pelo nome do perfil) — mensagens de outras pessoas são ignoradas.
+4. Mandem mensagens para o número da instância. As respostas do robô começam com 🤖.
+5. Para usar num grupo, mandem `ativar grupo` dentro dele. Os outros grupos são ignorados.
 
 O app responde usando o `server_url`, `instance` e `apikey` que a própria Evolution envia no webhook.
 Se preferir fixar, cadastre na Vercel `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_INSTANCE`.

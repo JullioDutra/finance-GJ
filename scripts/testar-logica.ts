@@ -4,7 +4,7 @@ import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
 import { aplicarOps } from "../src/lib/ops";
-import { processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
+import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
 import { parseValor } from "../src/lib/format";
 import type { Banco, Lancamento } from "../src/lib/types";
@@ -155,10 +155,13 @@ const bNomes = { ...b, config: { ...b.config, nomeP1: "Jullio", nomeP2: "Gabriel
 assert.equal(pessoaPorTelefone(bNomes, "999", "Gabriella Souza"), "p2");
 assert.equal(pessoaPorTelefone(bNomes, "999", "Gabi"), "casal", "apelido curto não bate");
 assert.equal(pessoaPorTelefone(bNomes, "999", "Jullio Dutra"), "p1");
+// desconhecidos não são atendidos pela Evolution
+assert.equal(identificarPessoa(bNomes, "5521912345678", "Tia Maria"), null);
+assert.equal(identificarPessoa(b, "5511999991111"), "p1");
 // mensagens próprias: ignora, exceto conversa comigo mesmo; nunca a resposta do robô
 assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: true }, message: { conversation: "oi" } })), "ignorar");
 ev = extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "luz 100" } }));
-assert.ok(ev && ev !== "ignorar" && ev.de === "5511977776666");
+assert.ok(ev && ev !== "ignorar" && ev.de === "5511977776666" && ev.propria === true);
 assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511977776666@s.whatsapp.net", fromMe: true }, message: { conversation: "🤖 ✅ Gasto registrado" } })), "ignorar");
 // outros eventos e mensagens sem texto
 assert.equal(extrairMensagem({ event: "connection.update", instance: "gj", data: { state: "open" } }), "ignorar");
