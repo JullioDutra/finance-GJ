@@ -88,7 +88,8 @@ async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhat
   }
   const base = `${d.servidor}/message`;
   const inst = encodeURIComponent(d.instancia);
-  if (usarBotoes && botoes?.length) {
+  // Botões via Evolution (técnica não oficial) não aparecem em grupos: lá vai sempre texto.
+  if (usarBotoes && botoes?.length && !r.grupo) {
     const { titulo, corpo, rodape } = separarCartao(texto);
     const ok = await postEvolution(`${base}/sendButtons/${inst}`, d.apikey, {
       number: r.responderPara,
