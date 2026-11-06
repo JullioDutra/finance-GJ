@@ -5,7 +5,7 @@ import type { Banco, Categoria, PessoaId, TipoLancamento } from "./types";
 import { dataCurta, diasEntre, dinheiro, isoDe, mesDe, nomeMes, parseValor, semAcento, somarMeses } from "./format";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "./calc";
 import { opNovoLancamento, opsDesfazerConta, opsPagarConta, type Op } from "./ops";
-import { processarAgenda } from "./whatsapp-agenda";
+import { desfazerLote, processarAgenda, processarLista } from "./whatsapp-agenda";
 import { rotuloDia } from "./agenda";
 import { barra, BT, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela, type BotaoWhats } from "./whatsapp-modelos";
 
@@ -95,7 +95,12 @@ export function identificarPessoa(b: Banco, telefone: string): "p1" | "p2" | nul
 }
 
 export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao: PessoaId, hoje: string): ResultadoMensagem {
+  // lista com várias linhas (compromissos/tarefas de uma vez)
+  const lista = processarLista(b, textoOriginal, pessoaPadrao, hoje);
+  if (lista) return lista;
   const texto = textoOriginal.trim().replace(/\s+/g, " ");
+  const lote = desfazerLote(b, texto, hoje);
+  if (lote) return lote;
   const norm = semAcento(texto);
   const mes = mesDe(hoje);
 
@@ -112,10 +117,13 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     const id = texto.split(" ")[1];
     // "desfazer" sem id: se a última coisa feita pelo WhatsApp foi um compromisso, desfaz ele
     if (!id) {
-      const ultimoEv = b.eventos
+      // (reverse: em empate de horário, o mais recente da lista vence)
+      const ultimoEv = [...b.eventos]
+        .reverse()
         .filter((e) => e.origem === "whatsapp" && (e.criadoEm ?? "").slice(0, 10) >= hoje.slice(0, 10))
         .sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0];
-      const ultimoLanc = b.lancamentos
+      const ultimoLanc = [...b.lancamentos]
+        .reverse()
         .filter((l) => (l.origem === "whatsapp" || l.origem === "conta_fixa") && l.data === hoje && l.pessoa === pessoaPadrao)
         .sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0];
       if (ultimoEv && (!ultimoLanc || (ultimoEv.criadoEm ?? "") > (ultimoLanc.criadoEm ?? ""))) {
@@ -130,6 +138,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     const alvo = id
       ? b.lancamentos.find((l) => l.id === id)
       : [...b.lancamentos]
+          .reverse()
           .filter((l) => (l.origem === "whatsapp" || l.origem === "conta_fixa") && l.data === hoje && l.pessoa === pessoaPadrao)
           .sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0];
     if (!alvo) {

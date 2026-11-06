@@ -104,6 +104,8 @@ export interface Tarefa {
   prazo: string; // YYYY-MM-DD ou ""
   feita: boolean;
   observacao: string;
+  /** criada junto com outras numa lista pelo WhatsApp */
+  lote?: string;
 }
 
 export type TipoEvento =
@@ -135,6 +137,8 @@ export interface Evento {
   pessoa?: PessoaId;
   origem?: "app" | "whatsapp";
   criadoEm?: string;
+  /** marcados juntos numa lista pelo WhatsApp (permite "desfazer tudo") */
+  lote?: string;
 }
 
 export interface Banco {

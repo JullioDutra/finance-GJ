@@ -269,9 +269,68 @@ wa("marcar sábado 20h pizza");
 assert.ok(ba.eventos.some((e) => e.titulo === "Pizza"));
 ra = wa("desfazer");
 assert.ok(ra.ok && !ba.eventos.some((e) => e.titulo === "Pizza"), ra.resposta);
+// ---------- lista do caderno (uma mensagem só) ----------
+const listaCaderno = `marcar
+Faculdade:
+06/11: horas complementares
+06/11: CEPE
+12/11: trabalho Aninha
+22/11: fotos formatura
+23/11: entrega caderno TCC (ver detalhamento)
+03/12: trabalho Gilson
+Fazer relatório de estágio
+Casamento:
+Olhar dia cartório
+Pedir batistério
+Definir pajens/daminhas
+21/11: fotos pré-wedding
+21/11: chá de noiva
+Igreja:
+05/11: reunião Metamorfose
+14/11: reunião Metamorfose
+14/11: noite de massas RNSC
+02/12: missa Metamorfose
+Pessoal:
+07/11: peeling 9:30
+14/11: sobrancelha 9:30
+16/11: olhar vestido pré-wedding`;
+const antesEv = ba.eventos.length, antesTf = ba.tarefas.length;
+ra = wa(listaCaderno, "p2");
+assert.ok(ra.ok, ra.resposta);
+const novos = ba.eventos.slice(antesEv);
+assert.equal(novos.length, 15, ra.resposta);
+assert.equal(ba.tarefas.length - antesTf, 3);
+const peel = novos.find((e) => e.titulo === "Peeling")!;
+assert.deepEqual([peel.data, peel.hora, peel.area, peel.pessoa, peel.observacao], ["2026-11-07", "09:30", "casal", "p2", "Pessoal"]);
+assert.equal(novos.find((e) => e.titulo === "Reunião Metamorfose" )!.data, "2026-11-05", "05/11 fica neste ano");
+assert.equal(novos.find((e) => e.titulo === "Fotos pré-wedding")!.area, "casamento");
+assert.equal(novos.find((e) => e.titulo === "Horas complementares")!.tipo, "trabalho");
+assert.ok(ra.resposta.includes("Fazer relatório de estágio"), "sem data avisado");
+// mandar de novo não duplica
+ra = wa(listaCaderno, "p2");
+assert.equal(ra.ok, false);
+assert.equal(ba.eventos.length, antesEv + 15);
+// desfazer tudo
+const loteId = ra.botoes ? "" : novos[0].lote!;
+ra = wa(`desmarcar-lote ${loteId}`);
+assert.ok(ra.ok && ba.eventos.length === antesEv && ba.tarefas.length === antesTf, ra.resposta);
+// "desfazer lista" (texto, para grupos sem botões)
+wa(listaCaderno, "p2");
+assert.equal(ba.eventos.length, antesEv + 15);
+ra = wa("desfazer lista");
+assert.ok(ra.ok && ba.eventos.length === antesEv, ra.resposta);
+// lista sem a palavra marcar (linhas começando com data)
+ra = wa("07/11 9:30 peeling\n14/11 9:30 sobrancelha");
+assert.equal(ba.eventos.length, antesEv + 2);
+// tarefa avulsa e lista de tarefas
+ra = wa("tarefa comprar lembrancinhas");
+assert.ok(ra.ok && ba.tarefas.some((t) => t.titulo === "Comprar lembrancinhas"));
+ra = wa("tarefas");
+assert.ok(ra.resposta.includes(`${ba.tarefas.filter((t) => !t.feita).length} pendente(s)`));
+
 // lançamentos continuam funcionando
 ra = wa("mercado 20");
-assert.ok(ra.ok && ba.lancamentos.length === 1);
+assert.ok(ra.ok && ba.lancamentos.length === 1, ra.resposta);
 
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);

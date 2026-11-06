@@ -4,7 +4,7 @@
 //   desmarcar <o quê> [quando]                 -> remove
 //   buscar <palavra>                            -> pesquisa em todas as datas
 
-import type { Banco, Evento, PessoaId } from "./types";
+import type { AreaEvento, Banco, Evento, PessoaId, Tarefa } from "./types";
 import { novoId, semAcento } from "./format";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda, rotuloDia, somarDias, tipoPorTitulo, type ItemAgenda } from "./agenda";
 import { cartao, type BotaoWhats } from "./whatsapp-modelos";
@@ -86,6 +86,38 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
       resposta: cartao(titulo, linhas.length ? linhas : ["Nada marcado. 🙌"], "Para marcar: marcar sexta 19h dentista"),
       botoes: [arg === "amanha" || arg === "amanhã" ? BT_AG.hoje : BT_AG.amanha, BT_AG.semana, { id: "ajuda", texto: "📖 Ajuda" }],
     };
+  }
+
+  // ----- tarefas do casamento -----
+  if (norm === "tarefas" || norm === "pendencias") {
+    const pend = b.tarefas.filter((t) => !t.feita).sort((x, y) => (x.prazo || "9999").localeCompare(y.prazo || "9999"));
+    return {
+      ok: true,
+      ops: [],
+      resposta: cartao(
+        `📝 *Tarefas do casamento* · ${pend.length} pendente(s)`,
+        pend.length ? pend.slice(0, 12).map((t) => `⬜ ${t.titulo}${t.prazo ? ` _(até ${rotuloDia(t.prazo, hoje)})_` : ""}`) : ["Tudo feito! 🎉"],
+        pend.length > 12 ? "Lista completa em Casamento → Tarefas" : "Para adicionar: tarefa <o quê>",
+      ),
+      botoes: [BT_AG.hoje, BT_AG.semana],
+    };
+  }
+  const novaTarefa = tirarPrefixo(texto, ["tarefa", "nova tarefa", "anotar tarefa"]);
+  if (novaTarefa) {
+    const { data, resto } = extrairData(novaTarefa, hoje);
+    const titulo = resto.replace(/^[\s:;,\-–—]+/, "").trim();
+    if (titulo) {
+      if (b.tarefas.some((t) => semAcento(t.titulo) === semAcento(titulo))) {
+        return { ok: false, ops: [], resposta: cartao("📝 *Essa tarefa já existe*", [`• ${titulo}`]) };
+      }
+      const t: Tarefa = { id: novoId(), titulo: titulo.charAt(0).toUpperCase() + titulo.slice(1), grupo: grupoDaTarefa(titulo), responsavel: "casal", prazo: data ?? "", feita: false, observacao: "" };
+      return {
+        ok: true,
+        ops: [{ tipo: "upsert", colecao: "tarefas", id: t.id, dados: t }],
+        resposta: cartao("📝 *Tarefa anotada*", [`⬜ *${t.titulo}*`, `🏷️ ${t.grupo}${t.prazo ? ` · até ${rotuloDia(t.prazo, hoje)}` : ""}`], "Veja em Casamento → Tarefas"),
+        botoes: [{ id: "tarefas", texto: "📝 Tarefas" }, BT_AG.semana],
+      };
+    }
   }
 
   // ----- buscar -----
@@ -208,4 +240,181 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
   }
 
   return null;
+}
+
+// =====================================================================
+// LISTA: vários compromissos/tarefas numa mensagem só (uma linha por item)
+// =====================================================================
+
+const GRUPO_TAREFA: [string[], string][] = [
+  [["cartorio", "batisterio", "documento", "certidao", "habilitacao", "curso de noivos"], "Documentos"],
+  [["convite", "convidado", "lista", "rsvp", "save the date"], "Convidados"],
+  [["pajem", "pajens", "daminha", "padrinho", "madrinha", "alianca", "igreja", "paroquia", "cerimonia"], "Cerimônia"],
+  [["vestido", "terno", "traje", "sapato", "cabelo", "maquiagem"], "Trajes"],
+  [["buffet", "festa", "bolo", "doce", "dj", "banda", "salao", "bebida"], "Festa"],
+  [["foto", "fotografo", "filmagem", "decoracao", "flores", "fornecedor", "cerimonial"], "Fornecedores"],
+  [["prestacao", "pagar", "pagamento", "site", "orcamento", "gasto"], "Planejamento"],
+];
+
+function grupoDaTarefa(titulo: string): string {
+  const t = ` ${semAcento(titulo)}`;
+  for (const [ps, g] of GRUPO_TAREFA) if (ps.some((p) => t.includes(` ${p}`))) return g;
+  return "Planejamento";
+}
+
+const limparLinha = (l: string) =>
+  l
+    .replace(/^[\s•·*\-–—>→.]+/, "")
+    .replace(/^-+>\s*/, "")
+    .trim();
+
+const capitalizar = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+const INICIO_MARCAR = new Set(["marcar", "agendar", "agenda", "compromissos", "marcar compromissos"]);
+const INICIO_TAREFAS = new Set(["tarefa", "tarefas", "pra fazer", "para fazer", "a fazer"]);
+
+const comecaComData = (l: string) => /^\d{1,2}\/\d{1,2}/.test(limparLinha(l));
+
+export function processarLista(b: Banco, textoOriginal: string, pessoa: PessoaId, hoje: string): Resultado | null {
+  const linhas = textoOriginal.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (linhas.length < 2) return null;
+  const primeira = semAcento(limparLinha(linhas[0])).replace(/[:.!]+$/, "").trim();
+  let modo: "marcar" | "tarefas";
+  let itens = linhas;
+  if (INICIO_MARCAR.has(primeira)) {
+    modo = "marcar";
+    itens = linhas.slice(1);
+  } else if (INICIO_TAREFAS.has(primeira)) {
+    modo = "tarefas";
+    itens = linhas.slice(1);
+  } else if (linhas.filter(comecaComData).length >= 2) {
+    modo = "marcar";
+  } else return null;
+
+  const lote = novoId();
+  const agora = new Date().toISOString();
+  const ops: Op[] = [];
+  const marcados: { secao: string; ev: Evento }[] = [];
+  const tarefasNovas: Tarefa[] = [];
+  const semData: string[] = [];
+  let repetidos = 0;
+  let secao = "";
+  let areaSecao: AreaEvento | null = null;
+
+  for (const bruta of itens) {
+    const linha = limparLinha(bruta);
+    if (!linha) continue;
+    // título de seção: "Faculdade:", "Casamento:", "Igreja:"...
+    if (/^[^\d:]{2,40}:$/.test(linha)) {
+      secao = capitalizar(linha.slice(0, -1).trim());
+      areaSecao = areaPorTitulo(secao) === "casamento" ? "casamento" : "casal";
+      continue;
+    }
+    const d = modo === "marcar" ? extrairData(linha, hoje) : extrairData(linha, hoje);
+    const h = extrairHora(d.resto);
+    const titulo = capitalizar(h.resto.replace(/^[\s:;,\-–—]+/, "").replace(/\s+/g, " ").trim());
+    if (!titulo) continue;
+    const area: AreaEvento = areaSecao ?? areaPorTitulo(titulo);
+
+    // sem data (ou modo tarefas): do casamento vira tarefa; o resto é avisado
+    if (!d.data || modo === "tarefas") {
+      if (modo === "tarefas" || area === "casamento") {
+        const ja = [...b.tarefas, ...tarefasNovas].some((t) => semAcento(t.titulo) === semAcento(titulo));
+        if (ja) {
+          repetidos++;
+          continue;
+        }
+        const t: Tarefa = { id: novoId(), titulo, grupo: grupoDaTarefa(titulo), responsavel: "casal", prazo: d.data ?? "", feita: false, observacao: secao, lote };
+        tarefasNovas.push(t);
+        ops.push({ tipo: "upsert", colecao: "tarefas", id: t.id, dados: t });
+      } else semData.push(titulo);
+      continue;
+    }
+
+    const ja = [...b.eventos, ...marcados.map((m) => m.ev)].some((e) => e.data === d.data && semAcento(e.titulo) === semAcento(titulo));
+    if (ja) {
+      repetidos++;
+      continue;
+    }
+    let tipo = tipoPorTitulo(titulo);
+    if (tipo === "outro" && /faculdade|escola|curso|trabalho/.test(semAcento(secao))) tipo = "trabalho";
+    const ev: Evento = {
+      id: novoId(),
+      titulo,
+      data: d.data,
+      hora: h.hora,
+      local: "",
+      tipo,
+      observacao: secao,
+      area,
+      pessoa: area === "casamento" ? "casal" : pessoa,
+      origem: "whatsapp",
+      criadoEm: agora,
+      lote,
+    };
+    marcados.push({ secao, ev });
+    ops.push({ tipo: "upsert", colecao: "eventos", id: ev.id, dados: ev });
+  }
+
+  if (!ops.length) {
+    return {
+      ok: false,
+      ops: [],
+      resposta: cartao(
+        "📋 *Nada novo na lista*",
+        [repetidos ? `Os ${repetidos} item(ns) já estavam cadastrados.` : "Não achei itens com data.", ...(semData.length ? ["", "_Sem data:_ " + semData.join(", ")] : [])],
+        "Formato: uma linha por item, ex.: 15/11 19h dentista",
+      ),
+    };
+  }
+
+  const corpo: string[] = [];
+  if (marcados.length) {
+    corpo.push(`✅ *${marcados.length} compromisso(s) na agenda*`);
+    let s = "\u0000";
+    for (const m of [...marcados].sort((x, y) => x.secao.localeCompare(y.secao) || (x.ev.data + x.ev.hora).localeCompare(y.ev.data + y.ev.hora))) {
+      if (m.secao !== s) {
+        s = m.secao;
+        if (s) corpo.push(`*${s}*`);
+      }
+      corpo.push(`• ${rotuloDia(m.ev.data, hoje)}${m.ev.hora ? " " + m.ev.hora : ""} — ${m.ev.titulo}`);
+    }
+  }
+  if (tarefasNovas.length) {
+    if (corpo.length) corpo.push("");
+    corpo.push(`📝 *${tarefasNovas.length} tarefa(s) do casamento*`);
+    for (const t of tarefasNovas) corpo.push(`• ${t.titulo}${t.prazo ? ` _(até ${rotuloDia(t.prazo, hoje)})_` : ""}`);
+  }
+  if (semData.length) {
+    corpo.push("", `⏭️ *Sem data — não marquei:*`, ...semData.map((x) => `• ${x}`));
+  }
+  if (repetidos) corpo.push("", `_${repetidos} item(ns) já estavam cadastrados e não foram repetidos._`);
+
+  return {
+    ok: true,
+    ops,
+    resposta: cartao("📋 *Lista adicionada*", corpo, semData.length ? "Para os sem data: marcar <dia> <o quê>" : "Errou algo? Mande desfazer lista"),
+    botoes: [{ id: `desmarcar-lote ${lote}`, texto: "↩️ Desfazer tudo" }, BT_AG.semana, BT_AG.hoje],
+  };
+}
+
+/** Remove tudo que foi criado numa lista ("desmarcar-lote <id>"). */
+export function desfazerLote(b: Banco, texto: string, hoje: string): Resultado | null {
+  const n = semAcento(texto);
+  let lote: string | undefined;
+  if (n.startsWith("desmarcar-lote ")) lote = texto.split(" ")[1];
+  else if (n === "desfazer lista" || n === "desfazer tudo") {
+    // última lista mandada pelo WhatsApp
+    lote = [...b.eventos].reverse().filter((e) => e.lote).sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0]?.lote ?? [...b.tarefas].reverse().find((t) => t.lote)?.lote;
+    if (!lote) return { ok: false, ops: [], resposta: cartao("↩️ *Nenhuma lista para desfazer*", ["Não encontrei listas mandadas pelo WhatsApp."]) };
+  } else return null;
+  const evs = b.eventos.filter((e) => e.lote === lote);
+  const tfs = b.tarefas.filter((t) => t.lote === lote);
+  if (!evs.length && !tfs.length) return { ok: false, ops: [], resposta: cartao("↩️ *Nada para desfazer*", ["Essa lista já foi removida."]) };
+  return {
+    ok: true,
+    ops: [...evs.map((e): Op => ({ tipo: "delete", colecao: "eventos", id: e.id })), ...tfs.map((t): Op => ({ tipo: "delete", colecao: "tarefas", id: t.id }))],
+    resposta: cartao("🗑️ *Lista desfeita*", [`Removi ${evs.length} compromisso(s)${tfs.length ? ` e ${tfs.length} tarefa(s)` : ""}.`], `Hoje é ${rotuloDia(hoje, hoje)}`),
+    botoes: [BT_AG.hoje, BT_AG.semana],
+  };
 }

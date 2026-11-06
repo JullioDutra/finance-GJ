@@ -78,6 +78,8 @@ export const MSG_AJUDA = cartao(
     "➕ `marcar sexta 19h dentista`",
     "🗑️ `desmarcar dentista`",
     "🔎 `buscar buffet`",
+    "📋 lista: `marcar` e um item por linha",
+    "📝 `tarefa olhar cartório` · `tarefas`",
     "",
     "*Consultas*",
     "`resumo` · `contas` · `casamento`",

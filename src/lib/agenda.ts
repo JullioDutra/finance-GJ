@@ -83,7 +83,7 @@ function somarDias(iso: string, n: number): string {
  */
 export function extrairData(texto: string, hoje: string): { data: string | null; resto: string } {
   const tokens = texto.split(/\s+/).filter(Boolean);
-  const n = tokens.map((t) => semAcento(t).replace(/[,.;]$/, ""));
+  const n = tokens.map((t) => semAcento(t).replace(/[,.;:]$/, ""));
   for (let i = 0; i < n.length; i++) {
     const t = n[i];
     let data: string | null = null;
@@ -97,8 +97,10 @@ export function extrairData(texto: string, hoje: string): { data: string | null;
       const [d, m, a] = t.split("/");
       let ano = a ? (a.length === 2 ? 2000 + Number(a) : Number(a)) : Number(hoje.slice(0, 4));
       let iso = `${ano}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-      if (!a && iso < hoje) {
-        ano += 1; // "15/01" em novembro = ano que vem
+      // sem ano: se já passou há mais de 2 meses, é do ano que vem ("15/01" em novembro);
+      // se passou há pouco (ex.: "05/11" no dia 06/11), fica neste ano
+      if (!a && iso < hoje && (new Date(hoje).getTime() - new Date(iso).getTime()) / 86_400_000 > 60) {
+        ano += 1;
         iso = `${ano}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
       }
       data = iso;
@@ -133,7 +135,7 @@ export function extrairData(texto: string, hoje: string): { data: string | null;
 export function extrairHora(texto: string): { hora: string; resto: string } {
   const tokens = texto.split(/\s+/).filter(Boolean);
   for (let i = 0; i < tokens.length; i++) {
-    const t = semAcento(tokens[i]).replace(/[,.;]$/, "");
+    const t = semAcento(tokens[i]).replace(/[,.;:]$/, "");
     const m = t.match(/^(\d{1,2})(?:h(\d{2})?|:(\d{2})h?)$/) ?? t.match(/^(\d{1,2})(h)$/);
     if (m) {
       const h = Number(m[1]);
