@@ -21,6 +21,8 @@ export interface Recebida {
   /** mensagem enviada pelo próprio número da instância (conversa "comigo mesmo") */
   propria?: boolean;
   grupo?: boolean;
+  /** número da própria instância (dígitos) */
+  dono?: string;
 }
 
 type Json = Record<string, unknown>;
@@ -65,10 +67,12 @@ function evolution(body: Json): Recebida | "ignorar" | null {
   const fromMe = key.fromMe === true;
 
   if (fromMe) {
-    // Só aceita mensagem própria quando é a conversa "comigo mesmo" (número da instância é de vocês)
-    // e nunca as respostas do próprio robô (evita loop).
+    // Mensagem enviada pelo próprio número da instância: nunca as respostas do robô (evita loop).
+    // Em conversa direta só vale a "comigo mesmo"; em grupo passa adiante e a rota decide
+    // (só o grupo de finanças é lido).
+    if (ehMensagemDoRobo(texto)) return "ignorar";
     const conversaComigo = !grupo && dono && digitos(remoteJid) === digitos(dono);
-    if (!conversaComigo || ehMensagemDoRobo(texto)) return "ignorar";
+    if (!grupo && !conversaComigo) return "ignorar";
   }
 
   // Em grupo, quem mandou é o participant. No formato novo (@lid) o telefone vem nos campos *Alt / senderPn.
@@ -90,6 +94,7 @@ function evolution(body: Json): Recebida | "ignorar" | null {
     apikey: str(body.apikey),
     propria: fromMe,
     grupo,
+    dono: digitos(dono),
   };
 }
 

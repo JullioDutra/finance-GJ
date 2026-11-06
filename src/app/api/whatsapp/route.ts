@@ -3,7 +3,20 @@ import { aplicarNoServidor, bancoConfigurado, carregarBanco, gravarInterno, lerI
 import { identificarPessoa, processarMensagem } from "@/lib/whatsapp";
 import type { PessoaId } from "@/lib/types";
 import { extrairMensagem, type Recebida } from "@/lib/whatsapp-entrada";
-import { BOTOES_FIM, BOTOES_INICIO, comandoSessao, MSG_FIM, MSG_INICIO, novaExpiracao, sessaoAtiva, type SessaoWhatsapp } from "@/lib/whatsapp-sessao";
+import {
+  BOTOES_FIM,
+  BOTOES_INICIO,
+  comandoSessao,
+  ehAtivarGrupo,
+  MSG_FIM,
+  MSG_GRUPO_ATIVADO,
+  MSG_GRUPO_SEMPRE_ATIVO,
+  MSG_INICIO,
+  novaExpiracao,
+  sessaoAtiva,
+  type SessaoWhatsapp,
+} from "@/lib/whatsapp-sessao";
+import { BT } from "@/lib/whatsapp-modelos";
 import { separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
 
 // Webhook do WhatsApp. Provedores aceitos:
@@ -126,47 +139,76 @@ export async function POST(req: Request) {
     const banco = await carregarBanco();
     const conhecida = identificarPessoa(banco, recebida.de);
     let pessoa: PessoaId = conhecida ?? "casal";
+    let noGrupoFinancas = false;
 
     if (recebida.provedor === "evolution") {
-      // O número da Evolution pode ser o WhatsApp pessoal de vocês: só atende os números
-      // cadastrados (ou a conversa "comigo mesmo").
-      if (!conhecida && !recebida.propria) {
-        const cad = [banco.config.telefoneP1, banco.config.telefoneP2].map((t) => t.replace(/\D/g, "").slice(-4)).filter(Boolean);
-        console.info(
-          `whatsapp: ignorado ${recebida.lid ? "código interno (LID)" : "telefone"} final ${recebida.de.slice(-4) || "?"}` +
-            ` — cadastrados: ${cad.length ? cad.map((c) => `final ${c}`).join(", ") : "nenhum"}`,
-        );
-        // guarda para aprovação em Ajustes (só quem está logado no app pode aprovar)
-        if (recebida.de) {
-          await gravarInterno("_whatsapp_recusados", recebida.de, {
-            id: recebida.de,
-            lid: !!recebida.lid,
-            nome: recebida.nome.slice(0, 60),
-            texto: recebida.texto.slice(0, 60),
-            quando: new Date().toISOString(),
-          });
-        }
-        return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
-      }
-      if (recebida.propria && !conhecida) pessoa = identificarPessoa(banco, recebida.de) ?? "casal";
+      const usarBotoes = banco.config.whatsappBotoes !== false;
+      const somenteGrupo = !!banco.config.whatsappSomenteGrupo;
+      const ehGrupoFinancas = !!recebida.grupo && !!banco.config.grupoWhatsapp && recebida.responderPara === banco.config.grupoWhatsapp;
 
-      // Modo finanças: só lê a conversa depois de "iniciar finanças"; fora disso é conversa normal.
-      const conversa = recebida.responderPara || recebida.de;
-      const agora = Date.now();
-      const sessao = (await lerInterno<SessaoWhatsapp>("_whatsapp_sessoes")).find((x) => x.id === conversa);
-      const comando = comandoSessao(recebida.texto);
-      if (comando === "iniciar") {
+      // "ativar grupo": registra o grupo atual como grupo de finanças (só um de vocês pode fazer isso)
+      if (recebida.grupo && ehAtivarGrupo(recebida.texto) && (conhecida || recebida.propria)) {
+        await aplicarNoServidor([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, grupoWhatsapp: recebida.responderPara } }]);
+        await responderEvolution(recebida, MSG_GRUPO_ATIVADO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes);
+        return NextResponse.json({ ok: true, grupoAtivado: true });
+      }
+
+      // Modo "somente o grupo de finanças": todo o resto é descartado na hora — sem resposta, sem registro.
+      if (somenteGrupo && !ehGrupoFinancas) return NextResponse.json({ ok: true, ignorado: "fora do grupo de finanças" });
+
+      if (ehGrupoFinancas) {
+        noGrupoFinancas = true;
+        // Grupo só de vocês dois: sempre ativo. Quem mandou: pelo número; se o WhatsApp esconder o número,
+        // as mensagens do próprio robô são do dono da instância e as demais, da outra pessoa.
+        const donoPessoa = identificarPessoa(banco, recebida.dono ?? "");
+        const outra = donoPessoa === "p1" ? "p2" : donoPessoa === "p2" ? "p1" : "casal";
+        pessoa = conhecida ?? (recebida.propria ? (donoPessoa ?? "casal") : outra);
+        if (comandoSessao(recebida.texto)) {
+          await responderEvolution(recebida, MSG_GRUPO_SEMPRE_ATIVO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes);
+          return NextResponse.json({ ok: true, grupo: "sempre ativo" });
+        }
+      } else {
+        // Fora do grupo de finanças: mensagens próprias em grupos nunca são lidas.
+        if (recebida.propria && recebida.grupo) return NextResponse.json({ ok: true, ignorado: "grupo não é o de finanças" });
+        // Só atende os números cadastrados (ou a conversa "comigo mesmo").
+        if (!conhecida && !recebida.propria) {
+          const cad = [banco.config.telefoneP1, banco.config.telefoneP2].map((t) => t.replace(/\D/g, "").slice(-4)).filter(Boolean);
+          console.info(
+            `whatsapp: ignorado ${recebida.lid ? "código interno (LID)" : "telefone"} final ${recebida.de.slice(-4) || "?"}` +
+              ` — cadastrados: ${cad.length ? cad.map((c) => `final ${c}`).join(", ") : "nenhum"}`,
+          );
+          // guarda para aprovação em Ajustes — só conversas diretas (nunca grupos de terceiros)
+          if (recebida.de && !recebida.grupo) {
+            await gravarInterno("_whatsapp_recusados", recebida.de, {
+              id: recebida.de,
+              lid: !!recebida.lid,
+              nome: recebida.nome.slice(0, 60),
+              texto: recebida.texto.slice(0, 60),
+              quando: new Date().toISOString(),
+            });
+          }
+          return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
+        }
+        if (recebida.propria && !conhecida) pessoa = identificarPessoa(banco, recebida.de) ?? "casal";
+
+        // Modo finanças: só lê a conversa depois de "iniciar finanças"; fora disso é conversa normal.
+        const conversa = recebida.responderPara || recebida.de;
+        const agora = Date.now();
+        const sessao = (await lerInterno<SessaoWhatsapp>("_whatsapp_sessoes")).find((x) => x.id === conversa);
+        const comando = comandoSessao(recebida.texto);
+        if (comando === "iniciar") {
+          await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
+          await responderEvolution(recebida, MSG_INICIO, BOTOES_INICIO, usarBotoes);
+          return NextResponse.json({ ok: true, sessao: "iniciada" });
+        }
+        if (!sessaoAtiva(sessao, agora)) return NextResponse.json({ ok: true, ignorado: "fora do modo finanças" });
+        if (comando === "encerrar") {
+          await gravarInterno("_whatsapp_sessoes", conversa, null);
+          await responderEvolution(recebida, MSG_FIM, BOTOES_FIM, usarBotoes);
+          return NextResponse.json({ ok: true, sessao: "encerrada" });
+        }
         await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
-        await responderEvolution(recebida, MSG_INICIO, BOTOES_INICIO, banco.config.whatsappBotoes !== false);
-        return NextResponse.json({ ok: true, sessao: "iniciada" });
       }
-      if (!sessaoAtiva(sessao, agora)) return NextResponse.json({ ok: true, ignorado: "fora do modo finanças" });
-      if (comando === "encerrar") {
-        await gravarInterno("_whatsapp_sessoes", conversa, null);
-        await responderEvolution(recebida, MSG_FIM, BOTOES_FIM, banco.config.whatsappBotoes !== false);
-        return NextResponse.json({ ok: true, sessao: "encerrada" });
-      }
-      await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
     }
 
     const r = processarMensagem(banco, recebida.texto, pessoa, hojeSP());
@@ -179,7 +221,13 @@ export async function POST(req: Request) {
     }
     let respondido: boolean | undefined;
     if (recebida.provedor === "meta") await responderMeta(recebida.de, r.resposta);
-    if (recebida.provedor === "evolution") respondido = await responderEvolution(recebida, r.resposta, r.botoes, banco.config.whatsappBotoes !== false);
+    if (recebida.provedor === "evolution") {
+      // no grupo de finanças não existe "encerrar" (está sempre ativo)
+      const botoes = noGrupoFinancas
+        ? [...new Map((r.botoes ?? []).map((bt) => (bt.id === "encerrar" ? BT.ajuda : bt)).map((bt) => [bt.id, bt])).values()]
+        : r.botoes;
+      respondido = await responderEvolution(recebida, r.resposta, botoes, banco.config.whatsappBotoes !== false);
+    }
     return NextResponse.json({ ok: r.ok, pessoa, resposta: r.resposta, respondido });
   } catch (e) {
     console.error("whatsapp", e);

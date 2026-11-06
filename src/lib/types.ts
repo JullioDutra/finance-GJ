@@ -22,7 +22,10 @@ export interface Configuracoes {
   whatsappExtraP2?: string[];
   /** mostrar botões de resposta rápida nas mensagens do robô (padrão: sim) */
   whatsappBotoes?: boolean;
-  grupoWhatsapp?: string; // legado (não usado mais: o WhatsApp agora usa "iniciar finanças")
+  /** grupo de finanças do WhatsApp (jid), registrado com "ativar grupo" */
+  grupoWhatsapp?: string;
+  /** quando ligado, o robô lê SOMENTE o grupo de finanças e ignora todo o resto */
+  whatsappSomenteGrupo?: boolean;
 }
 
 export interface Categoria {

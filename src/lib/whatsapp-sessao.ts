@@ -56,3 +56,26 @@ export const MSG_FIM = cartao("👋 *Até mais!*", ["Modo finanças encerrado.",
 
 export const BOTOES_INICIO = [BT.resumo, BT.contas, BT.casamento];
 export const BOTOES_FIM = [BT.iniciar];
+
+const ATIVAR_GRUPO = new Set(["ativar grupo", "ativar grupo financas", "ativar este grupo", "vincular grupo"]);
+
+/** "ativar grupo" — registra o grupo atual como grupo de finanças. */
+export function ehAtivarGrupo(texto: string): boolean {
+  return ATIVAR_GRUPO.has(normalizar(texto));
+}
+
+export const MSG_GRUPO_ATIVADO = cartao(
+  "✅ *Grupo de finanças ativado*",
+  [
+    "Daqui pra frente eu leio *só este grupo*.",
+    "Não precisa de iniciar finanças: é só mandar.",
+    "",
+    "🛒 `mercado 154,90`",
+    "💰 `recebi 3500 salário`",
+    "🐷 `guardei 500`",
+    "✅ `paguei luz`",
+  ],
+  "Mande ajuda para ver todos os comandos",
+);
+
+export const MSG_GRUPO_SEMPRE_ATIVO = cartao("💬 *Este grupo é de finanças*", ["Aqui eu estou sempre ativo — é só mandar os lançamentos."], "Mande ajuda para ver os comandos");

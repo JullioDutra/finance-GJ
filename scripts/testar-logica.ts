@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
-import { comandoSessao, MSG_INICIO, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
+import { comandoSessao, ehAtivarGrupo, MSG_INICIO, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
 import { separarCartao } from "../src/lib/whatsapp-modelos";
 import { aplicarOps } from "../src/lib/ops";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
@@ -178,6 +178,11 @@ const bLid = { ...b, config: { ...b.config, whatsappExtraP2: ["123456789012345"]
 assert.equal(identificarPessoa(bLid, "123456789012345"), "p2");
 assert.equal(identificarPessoa(bLid, "999456789012345"), null, "não basta bater o final");
 
+// mensagem própria em grupo passa adiante (a rota só lê o grupo de finanças); no privado com outra pessoa, não
+ev = extrairMensagem(evo({ key: { remoteJid: "120363@g.us", fromMe: true }, message: { conversation: "uber 32" } }));
+assert.ok(ev && ev !== "ignorar" && ev.grupo === true && ev.propria === true && ev.de === "5511977776666");
+assert.equal(extrairMensagem(evo({ key: { remoteJid: "5511955554444@s.whatsapp.net", fromMe: true }, message: { conversation: "oi" } })), "ignorar");
+
 // ---------- botões ----------
 // clique em botão (nativeFlow) vira o comando do id
 ev = extrairMensagem(evo({ key: { remoteJid: "5511999991111@s.whatsapp.net", fromMe: false }, message: { interactiveResponseMessage: { body: { text: "📊 Resumo" }, nativeFlowResponseMessage: { name: "quick_reply", paramsJson: '{"id":"resumo"}' } } } }));
@@ -206,6 +211,7 @@ assert.equal(comandoSessao("vou iniciar finanças amanhã"), null, "só a mensag
 assert.equal(comandoSessao("Encerrar"), "encerrar");
 assert.equal(comandoSessao("sair"), "encerrar");
 assert.equal(comandoSessao("mercado 10"), null);
+assert.ok(ehAtivarGrupo("Ativar grupo") && !ehAtivarGrupo("vamos ativar grupo amanhã"));
 const t0 = 1_000_000;
 assert.equal(sessaoAtiva(undefined, t0), false);
 assert.equal(sessaoAtiva({ id: "x", expira: novaExpiracao(t0) }, t0 + 9 * 60_000), true);

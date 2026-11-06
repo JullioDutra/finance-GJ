@@ -347,6 +347,63 @@ function Remetentes() {
   );
 }
 
+function GrupoFinancas() {
+  const { banco, aplicar } = useDados();
+  const temGrupo = !!banco.config.grupoWhatsapp;
+  const somente = !!banco.config.whatsappSomenteGrupo;
+  const salvar = (dados: Partial<Configuracoes>, msg: string) => aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, ...dados } }], msg);
+  return (
+    <div className="mb-4 rounded-2xl border border-line p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <UsersRound className="h-4 w-4 text-brand" /> Grupo de finanças
+        </div>
+        {temGrupo ? (
+          <Selo tom="ok" icone={Check}>
+            vinculado
+          </Selo>
+        ) : (
+          <Selo>não vinculado</Selo>
+        )}
+      </div>
+      {temGrupo ? (
+        <p className="mt-2 text-sm text-muted">No grupo vinculado o robô fica sempre ativo — não precisa de “iniciar finanças”.</p>
+      ) : (
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted">
+          <li>Criem um grupo no WhatsApp só com vocês dois (o número do robô precisa estar nele).</li>
+          <li>
+            Mandem <code className="rounded bg-surface-2 px-1">ativar grupo</code> dentro dele.
+          </li>
+        </ol>
+      )}
+      <label className={cx("mt-3 flex items-start gap-3 text-sm", !temGrupo && "opacity-50")}>
+        <input
+          type="checkbox"
+          disabled={!temGrupo}
+          checked={somente && temGrupo}
+          onChange={(e) => salvar({ whatsappSomenteGrupo: e.target.checked }, e.target.checked ? "Robô lendo só o grupo de finanças" : "Modo somente grupo desligado")}
+          className="mt-0.5 h-5 w-5 accent-[var(--brand)]"
+        />
+        <span>
+          <strong>Ler somente o grupo de finanças</strong>
+          <span className="block text-xs text-muted">
+            Recomendado se o robô usa o número pessoal de um de vocês: qualquer outra conversa ou grupo é descartada na hora — sem resposta e sem guardar nada.
+          </span>
+        </span>
+      </label>
+      {temGrupo && (
+        <button
+          type="button"
+          className="mt-3 text-xs text-danger"
+          onClick={() => confirm("Desvincular o grupo de finanças?") && salvar({ grupoWhatsapp: "", whatsappSomenteGrupo: false }, "Grupo desvinculado")}
+        >
+          Desvincular grupo
+        </button>
+      )}
+    </div>
+  );
+}
+
 function OpcaoBotoes() {
   const { banco, aplicar } = useDados();
   const ligado = banco.config.whatsappBotoes !== false;
@@ -392,6 +449,7 @@ function WhatsApp() {
         Mandem <code className="rounded bg-surface-2 px-1">iniciar finanças</code> para o número do robô para começar e{" "}
         <code className="rounded bg-surface-2 px-1">encerrar</code> para voltar à conversa normal.
       </p>
+      <GrupoFinancas />
       <Remetentes />
       <OpcaoBotoes />
       <details className="mt-4">

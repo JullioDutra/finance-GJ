@@ -54,6 +54,9 @@ npm run testar
 
 ## WhatsApp (Evolution API)
 
+**Modo recomendado com número pessoal:** criem um grupo só com vocês dois (com o número do robô), mandem `ativar grupo` nele e, em **Ajustes → WhatsApp**, liguem **"Ler somente o grupo de finanças"**. O robô passa a ler só esse grupo (sempre ativo, sem "iniciar finanças") e descarta todo o resto na hora, sem responder nem guardar.
+
+
 1. Na instância da Evolution → **Webhook** → ativar, com a URL:
    ```
    https://financas-gj.vercel.app/api/whatsapp?token=SEU_WHATSAPP_WEBHOOK_TOKEN
