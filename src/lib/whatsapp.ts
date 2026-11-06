@@ -319,7 +319,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
           ["Sobra do mês", dinheiro(sobra)],
         ]),
       ],
-      "Errou? Toque em Desfazer",
+      "Errou? Mande desfazer",
     ),
     botoes: [BT.desfazer(op.id), BT.resumo, BT.encerrar],
   };
