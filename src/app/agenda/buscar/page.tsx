@@ -9,7 +9,7 @@ import type { Evento } from "@/lib/types";
 import { Card, cx, Input, Titulo, Vazio } from "@/components/ui";
 import { aplicarFiltros, FiltrosAgenda, ListaPorDia, useAgendaModal, type FiltroArea } from "@/components/agenda";
 
-const SUGESTOES = ["dentista", "buffet", "aniversário", "prova", "reunião", "viagem"];
+const SUGESTOES = ["amanhã", "sábado", "dezembro", "faculdade", "igreja", "buffet"];
 
 export default function AgendaBuscar() {
   const { banco } = useDados();
@@ -22,17 +22,17 @@ export default function AgendaBuscar() {
   const abrirEv = (e: Evento) => abrir({ editar: e });
 
   const itens = aplicarFiltros(itensAgenda(banco, { hoje }), area, pessoa, automaticos);
-  const achados = busca.trim() ? buscarNaAgenda(itens, busca) : [];
+  const achados = busca.trim() ? buscarNaAgenda(itens, busca, hoje) : [];
   const futuros = achados.filter((i) => i.data >= hoje);
   const passados = achados.filter((i) => i.data < hoje).reverse();
 
   return (
     <div className="space-y-5">
-      <Titulo area="Agenda" titulo="Buscar" sub="Procure por nome, local ou observação — em qualquer data, passada ou futura" />
+      <Titulo area="Agenda" titulo="Buscar" sub="Por nome, local, observação ou data (21/11, sábado, amanhã, dezembro)" />
       <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
-          <Input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="O que vocês procuram?" className="py-3.5 pl-12 pr-10 text-lg" />
+          <Input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Palavra ou data (ex.: dentista, 21/11, sábado, dezembro)" className="py-3.5 pl-12 pr-10 text-lg" />
           {busca && (
             <button type="button" onClick={() => setBusca("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted" aria-label="Limpar">
               <X className="h-4 w-4" />

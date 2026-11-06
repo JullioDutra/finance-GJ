@@ -27,7 +27,7 @@ export default function AgendaProximos() {
   const deAmanha = todos.filter((i) => i.data === amanha);
   const semana = todos.filter((i) => i.data > amanha && i.data <= somarDias(hoje, 7));
   const adiante = todos.filter((i) => i.data > somarDias(hoje, 7) && i.data <= somarDias(hoje, 60));
-  const resultados = busca.trim() ? buscarNaAgenda(todos, busca) : [];
+  const resultados = busca.trim() ? buscarNaAgenda(todos, busca, hoje) : [];
   const d = new Date(hoje + "T12:00:00");
   const abrirEv = (e: Evento) => abrir({ editar: e });
 
@@ -77,7 +77,7 @@ export default function AgendaProximos() {
       <div className="space-y-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar compromisso (ex.: dentista, buffet, aniversário)" className="py-3 pl-10 pr-10" />
+          <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou data (ex.: dentista, 21/11)" className="py-3 pl-10 pr-10" />
           {busca && (
             <button type="button" onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted" aria-label="Limpar busca">
               <X className="h-4 w-4" />

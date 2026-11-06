@@ -124,7 +124,7 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
   const termoBusca = tirarPrefixo(texto, PREFIXOS_BUSCAR);
   if (termoBusca !== null) {
     if (!termoBusca) return { ok: false, ops: [], resposta: cartao("🔎 *O que buscar?*", ["Ex.: `buscar dentista`, `buscar buffet`"]) };
-    const achados = buscarNaAgenda(itensAgenda(b, { hoje }), termoBusca);
+    const achados = buscarNaAgenda(itensAgenda(b, { hoje }), termoBusca, hoje);
     const futuros = achados.filter((i) => i.data >= hoje);
     const passados = achados.filter((i) => i.data < hoje).reverse();
     const linhas = [

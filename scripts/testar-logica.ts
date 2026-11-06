@@ -255,8 +255,14 @@ ra = wa("agenda semana");
 assert.ok(ra.resposta.includes("Dentista") && !ra.resposta.includes("degustação"));
 ra = wa("agenda 15/11");
 assert.ok(ra.resposta.toLowerCase().includes("degustação"));
-// buscar
-assert.equal(buscarNaAgenda(itensAgenda(ba, { hoje: HOJE }), "buffet").length, 1);
+// buscar (por palavra e por data)
+assert.equal(buscarNaAgenda(itensAgenda(ba, { hoje: HOJE }), "buffet", HOJE).length, 1);
+const soEv = itensAgenda(ba, { hoje: HOJE, automaticos: false });
+assert.deepEqual(buscarNaAgenda(soEv, "15/11", HOJE).map((i) => i.titulo), ["Degustação buffet"]);
+assert.deepEqual(buscarNaAgenda(soEv, "amanhã", HOJE).map((i) => i.titulo).sort(), ["Aniversário da mãe", "Dentista"]);
+assert.equal(buscarNaAgenda(soEv, "sexta dentista", HOJE).length, 1);
+assert.equal(buscarNaAgenda(soEv, "15/11 dentista", HOJE).length, 0);
+assert.equal(buscarNaAgenda(soEv, "novembro", HOJE).length, 3);
 ra = wa("buscar dentista");
 assert.ok(ra.resposta.includes("Dentista"));
 // desmarcar

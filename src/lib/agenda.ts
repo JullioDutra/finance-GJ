@@ -58,14 +58,38 @@ export function itensAgenda(b: Banco, opts: { automaticos?: boolean; hoje?: stri
 }
 
 /** Busca sem acento por título, local, observação e tipo. */
-export function buscarNaAgenda(itens: ItemAgenda[], termo: string): ItemAgenda[] {
-  const palavras = semAcento(termo).split(/\s+/).filter(Boolean);
-  if (!palavras.length) return [];
+/**
+ * Busca sem acento por título, local, observação e tipo.
+ * Também entende datas: "21/11", "dia 21", "sábado", "amanhã" — sozinhas ou junto
+ * com palavras ("21/11 fotos"). Um mês ("11/2026" ou "novembro") traz o mês inteiro.
+ */
+export function buscarNaAgenda(itens: ItemAgenda[], termo: string, hoje = isoDe(new Date())): ItemAgenda[] {
+  let texto = termo.trim();
+  if (!texto) return [];
+  let mes: string | null = null;
+  const nt = semAcento(texto);
+  const mm = nt.match(/(?:^|\s)(\d{1,2})\/(\d{4})(?:\s|$)/);
+  const idxMes = MESES_NOMES.findIndex((m) => new RegExp(`(^|\\s)${m}(\\s|$)`).test(nt));
+  if (mm) {
+    mes = `${mm[2]}-${mm[1].padStart(2, "0")}`;
+    texto = nt.replace(mm[0], " ").trim();
+  } else if (idxMes >= 0) {
+    let ano = Number(hoje.slice(0, 4));
+    if (idxMes + 1 < Number(hoje.slice(5, 7)) - 2) ano += 1;
+    mes = `${ano}-${String(idxMes + 1).padStart(2, "0")}`;
+    texto = nt.replace(MESES_NOMES[idxMes], " ").trim();
+  }
+  const { data, resto } = mes ? { data: null, resto: texto } : extrairData(texto, hoje);
+  const palavras = semAcento(resto).split(/\s+/).filter(Boolean);
   return itens.filter((i) => {
+    if (data && i.data !== data) return false;
+    if (mes && !i.data.startsWith(mes)) return false;
     const alvo = semAcento(`${i.titulo} ${i.sub} ${i.evento?.tipo ?? i.tipo}`);
     return palavras.every((p) => alvo.includes(p));
   });
 }
+
+const MESES_NOMES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 // ---------------- leitura de datas e horas (WhatsApp) ----------------
 
