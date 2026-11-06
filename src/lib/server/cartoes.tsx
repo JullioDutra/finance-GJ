@@ -13,14 +13,18 @@ import {
   Heart,
   Hourglass,
   ListChecks,
+  MessageCircle,
   PiggyBank,
   ReceiptText,
+  Search,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { Banco } from "../types";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "../calc";
 import { diasEntre, dinheiro, nomeMes, somarMeses } from "../format";
-import { itensAgenda, rotuloDia, type ItemAgenda } from "../agenda";
+import { buscarNaAgenda, itensAgenda, rotuloDia, type ItemAgenda } from "../agenda";
+import { checklistTarefas, type ItemChecklist } from "../tarefas";
 import type { PedidoImagem } from "../whatsapp";
 import { ICONES_EVENTO, iconeDaCategoria } from "@/components/icones";
 import * as Lucide from "lucide";
@@ -334,47 +338,264 @@ const COR_TIPO = (i: ItemAgenda) =>
 const ICONE_TIPO = (i: ItemAgenda): LucideIcon =>
   i.tipo === "evento" ? (ICONES_EVENTO[i.evento?.tipo ?? "outro"] ?? CalendarDays) : i.tipo === "fornecedor" ? Banknote : i.tipo === "conta" ? ReceiptText : i.tipo === "tarefa" ? ListChecks : Heart;
 const SEM = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+const MES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const corta = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
+const ROW = 96;
 
-function Agenda(b: Banco, de: string, ate: string, titulo: string, hoje: string) {
+/** Blocos de dias (coluna com a data + compromissos). Devolve o JSX e a altura ocupada. */
+function BlocosDias(b: Banco, itens: ItemAgenda[], hoje: string, comMes: boolean) {
   const nomes = (p: string) => (p === "p1" ? b.config.nomeP1 : p === "p2" ? b.config.nomeP2 : "");
-  const itens = itensAgenda(b, { hoje }).filter((i) => i.data >= de && i.data <= ate);
   const dias = new Map<string, ItemAgenda[]>();
   for (const i of itens) dias.set(i.data, [...(dias.get(i.data) ?? []), i]);
-  const altura = 56 + 190 + (itens.length ? [...dias.values()].reduce((s, l) => s + 40 + l.length * 96, 0) : 160) + 56;
+  const altDia = (n: number) => 40 + Math.max(n * ROW, comMes ? 124 : ROW);
+  const altura = [...dias.values()].reduce((s, l) => s + altDia(l.length), 0);
+  const jsx = [...dias.entries()].map(([dia, lista]) => {
+    const d = new Date(dia + "T12:00:00");
+    const destaque = dia === hoje;
+    return (
+      <div key={dia} style={{ display: "flex", padding: `20px ${PAD}px`, height: altDia(lista.length), borderTop: `2px solid ${C.line}` }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 96, color: destaque ? C.brand : C.muted }}>
+          <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, fontWeight: 600 }}>{destaque ? "HOJE" : SEM[d.getDay()]}</div>
+          <div style={{ display: "flex", fontFamily: serif, fontSize: 58, color: destaque ? C.brand : C.ink, lineHeight: 1.1 }}>{dia.slice(8)}</div>
+          {comMes && <div style={{ display: "flex", fontSize: 20, letterSpacing: 2 }}>{`${MES[d.getMonth()]}${dia.slice(0, 4) !== hoje.slice(0, 4) ? " " + dia.slice(2, 4) : ""}`}</div>}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 30 }}>
+          {lista.map((i) => {
+            const sub = [i.hora, i.evento?.local, nomes(i.pessoa), !i.evento ? i.sub : i.evento.observacao].filter(Boolean).join(" · ");
+            return (
+              <div key={i.id} style={{ display: "flex", alignItems: "center", height: ROW }}>
+                <Chip icone={ICONE_TIPO(i)} cor={COR_TIPO(i)} tamanho={60} />
+                <div style={{ display: "flex", flexDirection: "column", marginLeft: 24, flex: 1 }}>
+                  <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: dia < hoje ? C.muted : C.ink }}>{corta(i.titulo, 38)}</div>
+                  {sub && <div style={{ display: "flex", fontSize: 22, color: C.muted }}>{corta(sub, 52)}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  });
+  return { jsx, altura };
+}
+
+function Vazio({ texto }: { texto: string }) {
+  return <div style={{ display: "flex", padding: `30px ${PAD}px`, fontSize: 32, color: C.muted, height: 160 }}>{texto}</div>;
+}
+
+function Agenda(b: Banco, de: string, ate: string, titulo: string, hoje: string) {
+  const itens = itensAgenda(b, { hoje }).filter((i) => i.data >= de && i.data <= ate);
+  const blocos = BlocosDias(b, itens, hoje, de.slice(0, 7) !== ate.slice(0, 7));
+  const altura = 56 + 190 + (itens.length ? blocos.altura : 160) + 56;
   return {
     altura,
     jsx: (
       <Moldura altura={altura}>
         <Cabecalho rotulo="Agenda" titulo={titulo} />
-        {!itens.length && <div style={{ display: "flex", padding: `30px ${PAD}px`, fontSize: 32, color: C.muted }}>Nada marcado.</div>}
-        {[...dias.entries()].map(([dia, lista]) => {
-          const d = new Date(dia + "T12:00:00");
-          return (
-            <div key={dia} style={{ display: "flex", padding: `20px ${PAD}px`, borderTop: `2px solid ${C.line}` }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 96, color: dia === hoje ? C.brand : C.muted }}>
-                <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, fontWeight: 600 }}>{dia === hoje ? "HOJE" : SEM[d.getDay()]}</div>
-                <div style={{ display: "flex", fontFamily: serif, fontSize: 58, color: dia === hoje ? C.brand : C.ink, lineHeight: 1.1 }}>{dia.slice(8)}</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 30 }}>
-                {lista.map((i) => {
-                  const sub = [i.hora, i.evento?.local, nomes(i.pessoa), !i.evento ? i.sub : i.evento.observacao].filter(Boolean).join(" · ");
-                  return (
-                    <div key={i.id} style={{ display: "flex", alignItems: "center", height: 96 }}>
-                      <Chip icone={ICONE_TIPO(i)} cor={COR_TIPO(i)} tamanho={60} />
-                      <div style={{ display: "flex", flexDirection: "column", marginLeft: 24, flex: 1 }}>
-                        <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: C.ink }}>{i.titulo.length > 38 ? i.titulo.slice(0, 37) + "…" : i.titulo}</div>
-                        {sub && <div style={{ display: "flex", fontSize: 22, color: C.muted }}>{sub.length > 52 ? sub.slice(0, 51) + "…" : sub}</div>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {!itens.length && <Vazio texto="Nada marcado." />}
+        {blocos.jsx}
       </Moldura>
     ),
     legenda: titulo,
+  };
+}
+
+// ---------- BUSCA ----------
+function Busca(b: Banco, termo: string, hoje: string) {
+  const achados = buscarNaAgenda(itensAgenda(b, { hoje }), termo, hoje);
+  const futuros = achados.filter((i) => i.data >= hoje).slice(0, 8);
+  const passados = achados.filter((i) => i.data < hoje).slice(-3);
+  const resto = achados.length - futuros.length - passados.length;
+  const bf = BlocosDias(b, futuros, hoje, true);
+  const bp = BlocosDias(b, passados, hoje, true);
+  const altura = 56 + 190 + (achados.length ? bf.altura + (passados.length ? 70 + bp.altura : 0) : 160) + (resto > 0 ? 80 : 0) + 56;
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo={`Busca · ${achados.length} resultado(s)`} titulo={corta(termo.charAt(0).toUpperCase() + termo.slice(1), 26)} />
+        {!achados.length && <Vazio texto="Nada encontrado." />}
+        {futuros.length > 0 && bf.jsx}
+        {passados.length > 0 && (
+          <div style={{ display: "flex", height: 70, alignItems: "flex-end", padding: `0 ${PAD}px 16px`, borderTop: `2px solid ${C.line}` }}>
+            <Rotulo>Já passaram</Rotulo>
+          </div>
+        )}
+        {passados.length > 0 && bp.jsx}
+        {resto > 0 && <div style={{ display: "flex", height: 80, alignItems: "center", padding: `0 ${PAD}px`, fontSize: 24, color: C.muted, borderTop: `2px solid ${C.line}` }}>{`+${resto} no app (Agenda → Buscar)`}</div>}
+      </Moldura>
+    ),
+    legenda: `Busca: ${termo}`,
+  };
+}
+
+// ---------- TAREFAS (checklist) ----------
+const COR_SITUACAO = { atrasada: C.danger, logo: C.warn, normal: C.muted } as const;
+
+function LinhaTarefa({ it, hoje, nomes }: { it: ItemChecklist; hoje: string; nomes: (p: string) => string }) {
+  const t = it.tarefa;
+  const prazo = t.prazo ? (it.situacao === "atrasada" ? `atrasada · era ${rotuloDia(t.prazo, hoje)}` : `até ${rotuloDia(t.prazo, hoje)}`) : "";
+  const sub = [prazo, nomes(t.responsavel)].filter(Boolean).join(" · ");
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: 88 }}>
+      <div style={{ display: "flex", width: 46, height: 46, borderRadius: 14, border: `3px solid ${it.situacao === "atrasada" ? C.danger : C.line}`, alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 600, color: C.muted }}>
+        {String(it.n)}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 24 }}>
+        <div style={{ display: "flex", fontSize: 29, color: C.ink }}>{corta(t.titulo, 44)}</div>
+        {sub && <div style={{ display: "flex", fontSize: 22, color: COR_SITUACAO[it.situacao] }}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+function Tarefas(b: Banco, hoje: string) {
+  const ck = checklistTarefas(b, hoje);
+  const nomes = (p: string) => (p === "p1" ? b.config.nomeP1 : p === "p2" ? b.config.nomeP2 : "");
+  const LIM = 16;
+  let usados = 0;
+  const grupos = ck.grupos
+    .map((g) => {
+      const itens = g.itens.slice(0, Math.max(0, LIM - usados));
+      usados += itens.length;
+      return { grupo: g.grupo, itens };
+    })
+    .filter((g) => g.itens.length);
+  const resto = ck.itens.length - usados;
+  const atrasadas = ck.itens.filter((i) => i.situacao === "atrasada").length;
+  const altura = 56 + 190 + 210 + grupos.reduce((s, g) => s + 74 + g.itens.length * 88, 0) + (ck.itens.length ? 0 : 140) + (resto > 0 ? 70 : 0) + 120 + 30;
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo="Checklist do casamento" titulo="Tarefas" />
+        <div style={{ display: "flex", flexDirection: "column", margin: `0 ${PAD}px`, padding: 32, background: ck.itens.length ? C.goldSoft : C.okSoft, borderRadius: 28, height: 180 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <div style={{ display: "flex", alignItems: "baseline" }}>
+              <div style={{ display: "flex", fontFamily: serif, fontSize: 72, color: C.ink, lineHeight: 1 }}>{String(ck.feitas)}</div>
+              <div style={{ display: "flex", fontSize: 28, color: C.muted, marginLeft: 12 }}>{`de ${ck.total} feitas`}</div>
+            </div>
+            <div style={{ display: "flex", fontSize: 26, color: atrasadas ? C.danger : C.muted }}>{atrasadas ? `${atrasadas} atrasada(s)` : `${ck.itens.length} pendente(s)`}</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 24 }}>
+            <Barra fracao={ck.total ? ck.feitas / ck.total : 0} cor={C.ok} altura={14} />
+          </div>
+        </div>
+        {!ck.itens.length && (
+          <div style={{ display: "flex", alignItems: "center", height: 140, padding: `0 ${PAD}px`, fontSize: 32, color: C.ok }}>
+            <Ico icone={Check} size={36} color={C.ok} strokeWidth={3} />
+            <span style={{ marginLeft: 16 }}>{ck.total ? "Tudo feito!" : "Nenhuma tarefa ainda."}</span>
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", padding: `30px ${PAD}px 0` }}>
+          {grupos.map((g) => (
+            <div key={g.grupo} style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", height: 74, alignItems: "flex-end", paddingBottom: 10, borderBottom: `2px solid ${C.line}` }}>
+                <Rotulo cor={C.brand}>{g.grupo}</Rotulo>
+              </div>
+              {g.itens.map((it) => (
+                <LinhaTarefa key={it.tarefa.id} it={it} hoje={hoje} nomes={nomes} />
+              ))}
+            </div>
+          ))}
+          {resto > 0 && <div style={{ display: "flex", height: 70, alignItems: "center", fontSize: 24, color: C.muted }}>{`+${resto} no app (Casamento → Tarefas)`}</div>}
+        </div>
+        <div style={{ display: "flex", margin: `auto ${PAD}px ${PAD}px`, padding: "22px 28px", background: C.soft, borderRadius: 24, fontSize: 25, color: C.muted }}>
+          {ck.itens.length ? "Para marcar como feita: feito 3  ·  vários: feito 2 5 7" : "Para adicionar: tarefa <o quê>"}
+        </div>
+      </Moldura>
+    ),
+    legenda: `Tarefas · ${ck.itens.length} pendente(s)`,
+  };
+}
+
+// ---------- LISTA ADICIONADA ----------
+function Lista(b: Banco, lote: string, semData: string[], repetidos: number, hoje: string) {
+  const itens = itensAgenda(b, { hoje }).filter((i) => i.tipo === "evento" && i.evento?.lote === lote);
+  const tarefas = b.tarefas.filter((t) => t.lote === lote);
+  const blocos = BlocosDias(b, itens, hoje, true);
+  const sd = semData.slice(0, 6);
+  const altura =
+    56 + 190 + blocos.altura + (tarefas.length ? 74 + tarefas.length * 80 : 0) + (sd.length ? 74 + sd.length * 56 : 0) + (repetidos ? 70 : 0) + 120 + 40;
+  const linhaSimples = (key: string, texto: string, sub: string, icone: LucideIcon, cor: string, alt: number) => (
+    <div key={key} style={{ display: "flex", alignItems: "center", height: alt }}>
+      <Ico icone={icone} size={30} color={cor} />
+      <div style={{ display: "flex", fontSize: 28, color: C.ink, marginLeft: 22, flex: 1 }}>{corta(texto, 44)}</div>
+      {sub && <div style={{ display: "flex", fontSize: 22, color: C.muted }}>{sub}</div>}
+    </div>
+  );
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo="Lista adicionada" titulo={`${itens.length + tarefas.length} item(ns)`} />
+        {blocos.jsx}
+        {tarefas.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", padding: `0 ${PAD}px`, borderTop: `2px solid ${C.line}` }}>
+            <div style={{ display: "flex", height: 74, alignItems: "flex-end", paddingBottom: 10 }}>
+              <Rotulo cor={C.brand}>Tarefas do casamento</Rotulo>
+            </div>
+            {tarefas.map((t) => linhaSimples(t.id, t.titulo, t.prazo ? `até ${rotuloDia(t.prazo, hoje)}` : "", ListChecks, C.warn, 80))}
+          </div>
+        )}
+        {sd.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", padding: `0 ${PAD}px`, borderTop: `2px solid ${C.line}` }}>
+            <div style={{ display: "flex", height: 74, alignItems: "flex-end", paddingBottom: 10 }}>
+              <Rotulo cor={C.danger}>Sem data · não marquei</Rotulo>
+            </div>
+            {sd.map((x, i) => linhaSimples(`sd${i}`, x, "", CircleAlert, C.danger, 56))}
+          </div>
+        )}
+        {repetidos > 0 && <div style={{ display: "flex", height: 70, alignItems: "center", padding: `0 ${PAD}px`, fontSize: 24, color: C.muted }}>{`${repetidos} item(ns) já estavam cadastrados e não foram repetidos.`}</div>}
+        <div style={{ display: "flex", margin: `auto ${PAD}px ${PAD}px`, padding: "22px 28px", background: C.soft, borderRadius: 24, fontSize: 25, color: C.muted }}>
+          {sd.length ? "Para os sem data: marcar <dia> <o quê>" : "Errou algo? Mande desfazer lista"}
+        </div>
+      </Moldura>
+    ),
+    legenda: `Lista adicionada · ${itens.length + tarefas.length} item(ns)`,
+  };
+}
+
+// ---------- AJUDA (guia de comandos) ----------
+const GUIA: [LucideIcon, string, string, [string, string][]][] = [
+  [Wallet, C.despesa, "Lançar", [["mercado 154,90", "gasto"], ["recebi 3500 salário", "receita"], ["guardei 500", "reserva"], ["paguei luz", "conta do dia 6"], ["desfazer", "apaga o último"]]],
+  [CalendarDays, C.receita, "Agenda", [["agenda semana", "próximos 7 dias"], ["marcar sexta 19h dentista", "novo compromisso"], ["desmarcar dentista", "remove"], ["buscar vestido", "pesquisa"]]],
+  [ListChecks, C.gold, "Casamento", [["tarefas", "checklist"], ["tarefa olhar convites", "nova tarefa"], ["feito 3", "marca como feita"], ["casamento", "pagamentos"]]],
+  [Search, C.brand, "Consultas", [["resumo", "mês atual"], ["contas", "dia 6"]]],
+];
+
+function Ajuda() {
+  const altura = 56 + 190 + GUIA.reduce((s, [, , , cmds]) => s + 96 + cmds.length * 70, 0) + 30 + 130 + 40;
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo="G&J Finanças" titulo="Como usar" />
+        {GUIA.map(([I, cor, titulo, cmds]) => (
+          <div key={titulo} style={{ display: "flex", flexDirection: "column", padding: `0 ${PAD}px`, borderTop: `2px solid ${C.line}` }}>
+            <div style={{ display: "flex", alignItems: "center", height: 96 }}>
+              <Chip icone={I} cor={cor} tamanho={52} />
+              <div style={{ display: "flex", fontFamily: serif, fontSize: 38, color: C.ink, marginLeft: 20 }}>{titulo}</div>
+            </div>
+            {cmds.map(([cmd, desc]) => (
+              <div key={cmd} style={{ display: "flex", alignItems: "center", height: 70 }}>
+                <div style={{ display: "flex", padding: "8px 18px", background: C.soft, borderRadius: 14, fontSize: 27, color: C.ink, fontWeight: 600 }}>{cmd}</div>
+                <div style={{ display: "flex", fontSize: 24, color: C.muted, marginLeft: 18 }}>{desc}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+        <div style={{ display: "flex", alignItems: "center", margin: `30px ${PAD}px ${PAD}px`, padding: "22px 28px", background: C.okSoft, borderRadius: 24, fontSize: 25, color: C.ok }}>
+          <Ico icone={MessageCircle} size={30} color={C.ok} />
+          <span style={{ marginLeft: 14 }}>Quando der certo, eu reajo com</span>
+          <div style={{ display: "flex", margin: "0 10px", width: 36, height: 36, borderRadius: 10, background: C.ok, alignItems: "center", justifyContent: "center" }}>
+            <Ico icone={Check} size={24} color="#ffffff" strokeWidth={3} />
+          </div>
+          <span>na sua mensagem</span>
+        </div>
+      </Moldura>
+    ),
+    legenda: "Como usar · mande ajuda quando quiser",
   };
 }
 
@@ -388,7 +609,15 @@ export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string):
           ? Contas(b, pedido.mes, hoje)
           : pedido.tipo === "casamento"
             ? Casamento(b, hoje)
-            : Agenda(b, pedido.de, pedido.ate, pedido.titulo || `Agenda de ${rotuloDia(pedido.de, hoje)}`, hoje);
+            : pedido.tipo === "tarefas"
+              ? Tarefas(b, hoje)
+              : pedido.tipo === "busca"
+                ? Busca(b, pedido.termo, hoje)
+                : pedido.tipo === "ajuda"
+                  ? Ajuda()
+                  : pedido.tipo === "lista"
+                    ? Lista(b, pedido.lote, pedido.semData, pedido.repetidos, hoje)
+                    : Agenda(b, pedido.de, pedido.ate, pedido.titulo || `Agenda de ${rotuloDia(pedido.de, hoje)}`, hoje);
     const img = new ImageResponse(c.jsx, { width: W, height: Math.min(4000, Math.round(c.altura)), fonts: await carregarFontes() });
     const buf = Buffer.from(await img.arrayBuffer());
     return { base64: buf.toString("base64"), legenda: c.legenda };

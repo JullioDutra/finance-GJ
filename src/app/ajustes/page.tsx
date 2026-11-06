@@ -439,14 +439,14 @@ function OpcaoBotoes() {
 
 function PreviaCartoes() {
   const { modo } = useDados();
-  const [tipo, setTipo] = useState<"resumo" | "agenda" | "contas" | "casamento" | null>(null);
+  const [tipo, setTipo] = useState<"resumo" | "agenda" | "contas" | "casamento" | "tarefas" | "ajuda" | null>(null);
   const [versao, setVersao] = useState(0);
   if (modo !== "nuvem") return null;
   return (
     <div className="rounded-xl border border-line p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-muted">Ver prévia do cartão:</span>
-        {(["resumo", "agenda", "contas", "casamento"] as const).map((t) => (
+        {(["resumo", "agenda", "contas", "casamento", "tarefas", "ajuda"] as const).map((t) => (
           <button key={t} type="button" onClick={() => {
               setTipo(tipo === t ? null : t);
               setVersao(Date.now());

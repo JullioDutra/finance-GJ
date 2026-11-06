@@ -99,13 +99,27 @@ export const MSG_AJUDA = cartao(
     "- vários de uma vez: `marcar` e um item por linha",
     "",
     "*Casamento*",
-    "- `tarefa olhar convites` · `tarefas` · `casamento`",
+    "- `tarefas` mostra o checklist numerado",
+    "- `feito 3` marca como feita · `feito 2 5 7` várias",
+    "- `tarefa olhar convites` · `reabrir convites`",
+    "- `casamento` mostra os pagamentos",
     "",
     "*Consultas*",
     "- `resumo` · `contas`",
   ],
   "Quando der certo, eu reajo com ✓ na sua mensagem",
 );
+
+/** Consultas que viram cartão em imagem (ver src/lib/server/cartoes.tsx). */
+export type PedidoImagem =
+  | { tipo: "resumo"; mes: string }
+  | { tipo: "contas"; mes: string }
+  | { tipo: "casamento" }
+  | { tipo: "agenda"; de: string; ate: string; titulo: string }
+  | { tipo: "tarefas" }
+  | { tipo: "busca"; termo: string }
+  | { tipo: "ajuda" }
+  | { tipo: "lista"; lote: string; semData: string[]; repetidos: number };
 
 // ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
 export interface BotaoWhats {

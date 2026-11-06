@@ -7,7 +7,8 @@
 import type { AreaEvento, Banco, Evento, PessoaId, Tarefa } from "./types";
 import { novoId, semAcento } from "./format";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda, rotuloDia, somarDias, tipoPorTitulo, type ItemAgenda } from "./agenda";
-import { cartao, type BotaoWhats } from "./whatsapp-modelos";
+import { cartao, type BotaoWhats, type PedidoImagem } from "./whatsapp-modelos";
+import { checklistTarefas, type ItemChecklist } from "./tarefas";
 import type { Op } from "./ops";
 
 interface Resultado {
@@ -16,7 +17,7 @@ interface Resultado {
   resposta: string;
   botoes?: BotaoWhats[];
   reagir?: string;
-  imagem?: { tipo: "agenda"; de: string; ate: string; titulo: string };
+  imagem?: PedidoImagem;
 }
 
 const BT_AG = {
@@ -38,6 +39,18 @@ function linhaItem(b: Banco, i: ItemAgenda, comDia: boolean, hoje: string): stri
   const quem = nomeP(b, i.pessoa);
   const extra = [i.evento?.local, quem].filter(Boolean).join(" · ");
   return `- ${quando ? `*${quando}* — ` : ""}${i.titulo}${extra ? ` _(${extra})_` : ""}`;
+}
+
+const PREFIXOS_FEITO = ["feito", "feita", "feitos", "feitas", "fiz", "concluir", "concluido", "concluida", "conclui", "terminei", "check"];
+
+function barraTexto(f: number, n = 10): string {
+  const cheios = Math.round(Math.max(0, Math.min(1, f)) * n);
+  return "▰".repeat(cheios) + "▱".repeat(n - cheios);
+}
+
+function linhaTarefa(it: ItemChecklist, hoje: string): string {
+  const prazo = it.tarefa.prazo ? (it.situacao === "atrasada" ? ` · *atrasada (${rotuloDia(it.tarefa.prazo, hoje)})*` : ` _· até ${rotuloDia(it.tarefa.prazo, hoje)}_`) : "";
+  return `${it.n}. ☐ ${it.tarefa.titulo}${prazo}`;
 }
 
 const PREFIXOS_MARCAR = ["marcar", "marca", "marque", "agendar", "agende", "agenda:", "novo compromisso"];
@@ -90,24 +103,92 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
     };
   }
 
-  // ----- tarefas do casamento -----
-  if (norm === "tarefas" || norm === "pendencias") {
-    const pend = b.tarefas.filter((t) => !t.feita).sort((x, y) => (x.prazo || "9999").localeCompare(y.prazo || "9999"));
+  // ----- tarefas do casamento (checklist numerado) -----
+  if (norm === "tarefas" || norm === "pendencias" || norm === "checklist" || norm === "lista de tarefas") {
+    const ck = checklistTarefas(b, hoje);
+    const corpo: string[] = [`${barraTexto(ck.total ? ck.feitas / ck.total : 0)}  ${ck.feitas} de ${ck.total} feitas`];
+    let mostradas = 0;
+    for (const g of ck.grupos) {
+      if (mostradas >= 15) break;
+      corpo.push("", `*${g.grupo}*`);
+      for (const it of g.itens) {
+        if (mostradas++ >= 15) break;
+        corpo.push(linhaTarefa(it, hoje));
+      }
+    }
+    if (!ck.itens.length) corpo.push("", ck.total ? "*Tudo feito!*" : "Nenhuma tarefa ainda.");
+    if (ck.itens.length > 15) corpo.push("", `_+${ck.itens.length - 15} no app (Casamento → Tarefas)_`);
     return {
       ok: true,
       ops: [],
-      resposta: cartao(
-        `📝 *Tarefas do casamento* · ${pend.length} pendente(s)`,
-        pend.length ? pend.slice(0, 12).map((t) => `⬜ ${t.titulo}${t.prazo ? ` _(até ${rotuloDia(t.prazo, hoje)})_` : ""}`) : ["Tudo feito! 🎉"],
-        pend.length > 12 ? "Lista completa em Casamento → Tarefas" : "Para adicionar: tarefa <o quê>",
-      ),
+      resposta: cartao(`*Tarefas do casamento* · ${ck.itens.length} pendente(s)`, corpo, ck.itens.length ? "Para marcar como feita: feito 3 (ou feito 2 5 7)" : "Para adicionar: tarefa <o quê>"),
       botoes: [BT_AG.hoje, BT_AG.semana],
+      imagem: { tipo: "tarefas" },
     };
   }
+
+  // ----- marcar tarefa como feita: "feito 3", "feito 2 5 7", "feito convites" -----
+  const feito = tirarPrefixo(texto, PREFIXOS_FEITO);
+  if (feito !== null) {
+    const ck = checklistTarefas(b, hoje);
+    const numeros = feito.match(/^[\d\s,e]+$/i) ? [...new Set((feito.match(/\d+/g) ?? []).map(Number))] : [];
+    let alvos: ItemChecklist[] = [];
+    if (numeros.length) {
+      if (numeros.some((n) => n < 1 || n > ck.itens.length)) {
+        if (/^fiz\b/i.test(semAcento(texto))) return null; // "fiz 50" pode ser outra coisa
+        return { ok: false, ops: [], resposta: cartao("*Número não encontrado*", [`Há ${ck.itens.length} tarefa(s) pendente(s).`, "Mande `tarefas` para ver a lista numerada."]) };
+      }
+      alvos = numeros.map((n) => ck.itens[n - 1]);
+    } else if (feito) {
+      const alvo = semAcento(feito);
+      alvos = ck.itens.filter((i) => semAcento(i.tarefa.titulo).includes(alvo));
+      if (alvos.length > 1) alvos = alvos.filter((i) => semAcento(i.tarefa.titulo) === alvo).length ? alvos.filter((i) => semAcento(i.tarefa.titulo) === alvo) : alvos;
+      if (!alvos.length) {
+        if (/^fiz\b/i.test(semAcento(texto))) return null;
+        return { ok: false, ops: [], resposta: cartao("*Não encontrei essa tarefa*", ["Mande `tarefas` e use o número: `feito 3`."]) };
+      }
+      if (alvos.length > 1) {
+        return { ok: false, ops: [], resposta: cartao("*Qual delas?*", [...alvos.slice(0, 8).map((i) => linhaTarefa(i, hoje)), "", `Mande \`feito ${alvos[0].n}\`, por exemplo.`]) };
+      }
+    } else {
+      return { ok: false, ops: [], resposta: cartao("*Qual tarefa?*", ["Mande `tarefas` para ver a lista e depois `feito 3`."]) };
+    }
+    const restantes = ck.itens.length - alvos.length;
+    return {
+      ok: true,
+      ops: alvos.map((i): Op => ({ tipo: "upsert", colecao: "tarefas", id: i.tarefa.id, dados: { ...i.tarefa, feita: true } })),
+      resposta: cartao(
+        alvos.length > 1 ? `*${alvos.length} tarefas feitas*` : "*Tarefa feita*",
+        [...alvos.map((i) => `✓ ~${i.tarefa.titulo}~`), "", restantes ? `Faltam ${restantes} · ${ck.feitas + alvos.length} de ${ck.total} feitas` : "*Todas as tarefas feitas!*"],
+        "Marcou errado? Mande reabrir e o nome",
+      ),
+      botoes: [{ id: `reabrir-id ${alvos.map((i) => i.tarefa.id).join(",")}`, texto: "Desfazer" }, { id: "tarefas", texto: "Tarefas" }],
+      reagir: "✅",
+    };
+  }
+
+  // ----- reabrir tarefa: "reabrir convites" ou botão "reabrir-id <ids>" -----
+  if (norm.startsWith("reabrir-id ")) {
+    const ids = texto.split(" ")[1]?.split(",") ?? [];
+    const ts = b.tarefas.filter((t) => ids.includes(t.id) && t.feita);
+    if (!ts.length) return { ok: false, ops: [], resposta: cartao("*Nada para desfazer*", ["Essas tarefas já estão pendentes."]) };
+    return { ok: true, ops: ts.map((t): Op => ({ tipo: "upsert", colecao: "tarefas", id: t.id, dados: { ...t, feita: false } })), resposta: cartao("*Tarefa reaberta*", ts.map((t) => `☐ ${t.titulo}`)), reagir: "✅" };
+  }
+  const reabrir = tirarPrefixo(texto, ["reabrir", "reabre", "desmarcar tarefa"]);
+  if (reabrir) {
+    const alvo = semAcento(reabrir);
+    const ts = b.tarefas.filter((t) => t.feita && semAcento(t.titulo).includes(alvo));
+    if (ts.length !== 1) {
+      return { ok: false, ops: [], resposta: cartao(ts.length ? "*Qual delas?*" : "*Não encontrei essa tarefa feita*", ts.length ? ts.slice(0, 8).map((t) => `✓ ${t.titulo}`) : ["Confira o nome em Casamento → Tarefas."], ts.length ? "Mande o nome mais completo" : undefined) };
+    }
+    const t = ts[0];
+    return { ok: true, ops: [{ tipo: "upsert", colecao: "tarefas", id: t.id, dados: { ...t, feita: false } }], resposta: cartao("*Tarefa reaberta*", [`☐ ${t.titulo}`]), reagir: "✅" };
+  }
+
   const novaTarefa = tirarPrefixo(texto, ["tarefa", "nova tarefa", "anotar tarefa"]);
   if (novaTarefa) {
     const { data, resto } = extrairData(novaTarefa, hoje);
-    const titulo = resto.replace(/^[\s:;,\-–—]+/, "").trim();
+    const titulo = resto.replace(/^[\s:;,\-–—]+/, "").replace(/\s+(ate|até|para|pra|no dia|dia|em)$/i, "").trim();
     if (titulo) {
       if (b.tarefas.some((t) => semAcento(t.titulo) === semAcento(titulo))) {
         return { ok: false, ops: [], resposta: cartao("📝 *Essa tarefa já existe*", [`• ${titulo}`]) };
@@ -116,7 +197,7 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
       return {
         ok: true,
         ops: [{ tipo: "upsert", colecao: "tarefas", id: t.id, dados: t }],
-        resposta: cartao("📝 *Tarefa anotada*", [`⬜ *${t.titulo}*`, `🏷️ ${t.grupo}${t.prazo ? ` · até ${rotuloDia(t.prazo, hoje)}` : ""}`], "Veja em Casamento → Tarefas"),
+        resposta: cartao("*Tarefa anotada*", [`☐ *${t.titulo}*`, `${t.grupo}${t.prazo ? ` · até ${rotuloDia(t.prazo, hoje)}` : ""}`], "Veja em Casamento → Tarefas"),
         botoes: [{ id: "tarefas", texto: "Tarefas" }, BT_AG.semana],
         reagir: "✅",
       };
@@ -139,6 +220,7 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
       ops: [],
       resposta: cartao(`🔎 *Busca: ${termoBusca}*`, achados.length ? linhas : ["Nenhum compromisso encontrado."], achados.length > 11 ? "Veja todos em Agenda → Buscar no app" : undefined),
       botoes: [BT_AG.hoje, BT_AG.semana],
+      ...(achados.length ? { imagem: { tipo: "busca" as const, termo: termoBusca } } : {}),
     };
   }
 
@@ -292,6 +374,11 @@ export function processarLista(b: Banco, textoOriginal: string, pessoa: PessoaId
   } else if (INICIO_TAREFAS.has(primeira)) {
     modo = "tarefas";
     itens = linhas.slice(1);
+  } else if ([...INICIO_MARCAR].some((p) => primeira.startsWith(p + " ")) && linhas.slice(1).some(comecaComData)) {
+    // "marcar 20/12 prova\n21/12 degustação": o primeiro item veio na mesma linha do comando
+    modo = "marcar";
+    const p = [...INICIO_MARCAR].filter((x) => primeira.startsWith(x + " ")).sort((x, y) => y.length - x.length)[0];
+    itens = [limparLinha(linhas[0]).slice(p.length).trim(), ...linhas.slice(1)];
   } else if (linhas.filter(comecaComData).length >= 2) {
     modo = "marcar";
   } else return null;
@@ -400,6 +487,7 @@ export function processarLista(b: Banco, textoOriginal: string, pessoa: PessoaId
     ops,
     resposta: cartao("📋 *Lista adicionada*", corpo, semData.length ? "Para os sem data: marcar <dia> <o quê>" : "Errou algo? Mande desfazer lista"),
     botoes: [{ id: `desmarcar-lote ${lote}`, texto: "Desfazer tudo" }, BT_AG.semana, BT_AG.hoje],
+    imagem: { tipo: "lista", lote, semData, repetidos },
   };
 }
 

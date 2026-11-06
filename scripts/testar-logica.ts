@@ -356,5 +356,34 @@ assert.equal(wa("agenda semana").imagem?.tipo, "agenda");
 assert.equal(wa("marcar 20/12 dentista").reagir, "✅");
 assert.equal(wa("xyz qualquer coisa").reagir, undefined);
 
+// checklist de tarefas
+{
+  const bt = bancoVazio();
+  const tw = (t: string) => {
+    const r = processarMensagem(bt, t, "p2", HOJE);
+    Object.assign(bt, aplicarOps(bt, r.ops));
+    return r;
+  };
+  let rt = tw("tarefas");
+  assert.equal(rt.imagem?.tipo, "tarefas");
+  assert.ok(rt.resposta.includes("1. ☐") && rt.resposta.includes(`0 de ${bt.tarefas.length} feitas`), rt.resposta);
+  semEmoji(rt.resposta);
+  const primeira = rt.resposta.match(/1\. ☐ ([^\n·]+)/)![1].trim();
+  rt = tw("feito 1 3");
+  assert.ok(rt.ok && rt.reagir === "✅" && bt.tarefas.filter((t) => t.feita).length === 2, rt.resposta);
+  assert.ok(bt.tarefas.find((t) => t.titulo === primeira)!.feita);
+  rt = tw("feito 999");
+  assert.equal(rt.ok, false);
+  rt = tw("fiz 50 mercado");
+  assert.ok(rt.ok && bt.lancamentos.length === 1, "fiz 50 continua sendo lançamento");
+  rt = tw(`reabrir ${primeira}`);
+  assert.ok(rt.ok && !bt.tarefas.find((t) => t.titulo === primeira)!.feita, rt.resposta);
+  rt = tw("tarefa comprar alianças até 01/12");
+  assert.ok(bt.tarefas.some((t) => t.titulo === "Comprar alianças" && t.prazo.endsWith("-12-01")), rt.resposta);
+  assert.equal(tw("ajuda").imagem?.tipo, "ajuda");
+  assert.equal(tw("marcar 20/12 15h prova do vestido\n21/12 degustação").imagem?.tipo, "lista");
+  assert.equal(tw("buscar vestido").imagem?.tipo, "busca");
+}
+
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);

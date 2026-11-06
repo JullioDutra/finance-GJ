@@ -72,9 +72,10 @@ Se o número da instância for de um de vocês, a conversa “comigo mesmo” ta
 
 Estilo das respostas (Ajustes → WhatsApp → Estilo das respostas, cada um pode ser desligado):
 - **Reação ✅** na própria mensagem quando um lançamento, conta paga ou compromisso dá certo (sem texto extra).
-- **Cartão em imagem** para consultas (`resumo`, `contas`, `casamento`, `agenda`). Se a imagem falhar, vai em texto.
+- **Cartão em imagem** para consultas (`resumo`, `contas`, `casamento`, `agenda`, `tarefas`, `buscar`, `ajuda`) e para listas de vários itens. Se a imagem falhar, vai em texto.
+- **Checklist de tarefas**: `tarefas` mostra a lista numerada; `feito 3` (ou `feito 2 5 7`, ou `feito convites`) marca como feita; `reabrir convites` desfaz.
 - **Texto limpo, sem emojis** para erros, avisos e respostas curtas.
-- Prévia dos cartões: `/api/cartao?tipo=resumo|contas|casamento|agenda` (logado).
+- Prévia dos cartões: `/api/cartao?tipo=resumo|contas|casamento|agenda|tarefas|busca|ajuda` (logado).
 
 Agenda: `agenda` · `agenda amanhã` · `agenda semana` · `marcar sexta 19h dentista` · `desmarcar dentista` · `buscar buffet`.
 

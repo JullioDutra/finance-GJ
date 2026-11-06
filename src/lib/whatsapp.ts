@@ -7,7 +7,7 @@ import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "
 import { opNovoLancamento, opsDesfazerConta, opsPagarConta, type Op } from "./ops";
 import { desfazerLote, processarAgenda, processarLista } from "./whatsapp-agenda";
 import { rotuloDia } from "./agenda";
-import { barra, BT, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela, type BotaoWhats } from "./whatsapp-modelos";
+import { barra, BT, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela, type BotaoWhats, type PedidoImagem } from "./whatsapp-modelos";
 
 export const AJUDA_WHATSAPP = MSG_AJUDA;
 
@@ -23,11 +23,7 @@ export interface ResultadoMensagem {
   imagem?: PedidoImagem;
 }
 
-export type PedidoImagem =
-  | { tipo: "resumo"; mes: string }
-  | { tipo: "contas"; mes: string }
-  | { tipo: "casamento" }
-  | { tipo: "agenda"; de: string; ate: string; titulo: string };
+export type { PedidoImagem } from "./whatsapp-modelos";
 
 const PALAVRAS_RECEITA = ["recebi", "receita", "entrada", "ganhei", "salario", "+"];
 const PALAVRAS_GUARDAR = ["guardei", "guardar", "reservei", "poupei", "investi", "aporte"];
@@ -115,7 +111,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
   const mes = mesDe(hoje);
 
   if (!texto || ["ajuda", "help", "menu", "?", "oi", "ola"].includes(norm)) {
-    return { ops: [], resposta: AJUDA_WHATSAPP, ok: true, botoes: [BT.resumo, BT.contas, BT.encerrar] };
+    return { ops: [], resposta: AJUDA_WHATSAPP, ok: true, botoes: [BT.resumo, BT.contas, BT.encerrar], imagem: { tipo: "ajuda" } };
   }
 
   // desfazer: "desfazer <id>" (botão) ou "desfazer" (último lançamento pelo WhatsApp desta pessoa, hoje)
