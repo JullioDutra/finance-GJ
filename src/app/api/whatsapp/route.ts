@@ -125,14 +125,27 @@ export async function POST(req: Request) {
 
   const tipo = req.headers.get("content-type") ?? "";
   let recebida: Recebida | null | "ignorar";
+  let corpoJson: Record<string, unknown> | null = null;
   if (tipo.includes("application/x-www-form-urlencoded")) {
     const form = await req.formData();
     recebida = { de: str(form.get("From")).replace(/^whatsapp:/, ""), nome: str(form.get("ProfileName")), texto: str(form.get("Body")), provedor: "twilio" };
   } else {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    corpoJson = body;
     recebida = extrairMensagem(body);
   }
-  if (recebida === "ignorar") return NextResponse.json({ ok: true, ignorado: true });
+  if (recebida === "ignorar") {
+    if (corpoJson) {
+      const d = (Array.isArray(corpoJson.data) ? corpoJson.data[0] : corpoJson.data) as Record<string, unknown> | undefined;
+      const k = (d?.key ?? {}) as Record<string, unknown>;
+      const jid = String(k.remoteJid ?? "");
+      console.info(
+        `whatsapp: descartado na leitura — evento=${String(corpoJson.event ?? "?")} conversa=${jid.endsWith("@g.us") ? "grupo …" + jid.slice(-10, -5) : jid ? "privado" : "?"}` +
+          ` proprio=${k.fromMe === true ? "sim" : "não"} tipos=[${Object.keys((d?.message ?? {}) as object).join(",")}]`,
+      );
+    }
+    return NextResponse.json({ ok: true, ignorado: true });
+  }
   if (!recebida) return NextResponse.json({ erro: "Mensagem sem texto" }, { status: 400 });
 
   try {
@@ -140,6 +153,21 @@ export async function POST(req: Request) {
     const conhecida = identificarPessoa(banco, recebida.de);
     let pessoa: PessoaId = conhecida ?? "casal";
     let noGrupoFinancas = false;
+    const rec = recebida;
+    const grupoVinc = banco.config.grupoWhatsapp ?? "";
+    const local = rec.grupo
+      ? rec.responderPara === grupoVinc && grupoVinc
+        ? "grupo de finanças"
+        : `outro grupo …${(rec.responderPara ?? "").slice(-10, -5)}${grupoVinc ? ` (vinculado …${grupoVinc.slice(-10, -5)})` : " (nenhum vinculado)"}`
+      : rec.propria
+        ? "comigo mesmo"
+        : "privado";
+    const decidir = (corpo: Record<string, unknown>, decisao: string) => {
+      if (rec.provedor === "evolution") {
+        console.info(`whatsapp: ${local} · de …${rec.de.slice(-4) || "?"}${rec.lid ? " (código interno)" : ""}${rec.propria ? " (próprio número)" : ""} → ${decisao}`);
+      }
+      return NextResponse.json(corpo);
+    };
 
     if (recebida.provedor === "evolution") {
       const usarBotoes = banco.config.whatsappBotoes !== false;
@@ -150,11 +178,11 @@ export async function POST(req: Request) {
       if (recebida.grupo && ehAtivarGrupo(recebida.texto) && (conhecida || recebida.propria)) {
         await aplicarNoServidor([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, grupoWhatsapp: recebida.responderPara } }]);
         await responderEvolution(recebida, MSG_GRUPO_ATIVADO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes);
-        return NextResponse.json({ ok: true, grupoAtivado: true });
+        return decidir({ ok: true, grupoAtivado: true }, "grupo vinculado");
       }
 
       // Modo "somente o grupo de finanças": todo o resto é descartado na hora — sem resposta, sem registro.
-      if (somenteGrupo && !ehGrupoFinancas) return NextResponse.json({ ok: true, ignorado: "fora do grupo de finanças" });
+      if (somenteGrupo && !ehGrupoFinancas) return decidir({ ok: true, ignorado: "fora do grupo de finanças" }, "ignorado (modo somente grupo)");
 
       if (ehGrupoFinancas) {
         noGrupoFinancas = true;
@@ -165,18 +193,13 @@ export async function POST(req: Request) {
         pessoa = conhecida ?? (recebida.propria ? (donoPessoa ?? "casal") : outra);
         if (comandoSessao(recebida.texto)) {
           await responderEvolution(recebida, MSG_GRUPO_SEMPRE_ATIVO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes);
-          return NextResponse.json({ ok: true, grupo: "sempre ativo" });
+          return decidir({ ok: true, grupo: "sempre ativo" }, "avisou que o grupo está sempre ativo");
         }
       } else {
         // Fora do grupo de finanças: mensagens próprias em grupos nunca são lidas.
-        if (recebida.propria && recebida.grupo) return NextResponse.json({ ok: true, ignorado: "grupo não é o de finanças" });
+        if (recebida.propria && recebida.grupo) return decidir({ ok: true, ignorado: "grupo não é o de finanças" }, "ignorado (mensagem própria em grupo que não é o de finanças)");
         // Só atende os números cadastrados (ou a conversa "comigo mesmo").
         if (!conhecida && !recebida.propria) {
-          const cad = [banco.config.telefoneP1, banco.config.telefoneP2].map((t) => t.replace(/\D/g, "").slice(-4)).filter(Boolean);
-          console.info(
-            `whatsapp: ignorado ${recebida.lid ? "código interno (LID)" : "telefone"} final ${recebida.de.slice(-4) || "?"}` +
-              ` — cadastrados: ${cad.length ? cad.map((c) => `final ${c}`).join(", ") : "nenhum"}`,
-          );
           // guarda para aprovação em Ajustes — só conversas diretas (nunca grupos de terceiros)
           if (recebida.de && !recebida.grupo) {
             await gravarInterno("_whatsapp_recusados", recebida.de, {
@@ -187,7 +210,10 @@ export async function POST(req: Request) {
               quando: new Date().toISOString(),
             });
           }
-          return NextResponse.json({ ok: true, ignorado: "remetente desconhecido" });
+          return decidir(
+            { ok: true, ignorado: "remetente desconhecido" },
+            `ignorado (número não cadastrado; cadastrados: ${[banco.config.telefoneP1, banco.config.telefoneP2].map((t) => (t.replace(/\D/g, "").slice(-4) ? "…" + t.replace(/\D/g, "").slice(-4) : "")).filter(Boolean).join(", ") || "nenhum"})`,
+          );
         }
         if (recebida.propria && !conhecida) pessoa = identificarPessoa(banco, recebida.de) ?? "casal";
 
@@ -199,13 +225,13 @@ export async function POST(req: Request) {
         if (comando === "iniciar") {
           await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
           await responderEvolution(recebida, MSG_INICIO, BOTOES_INICIO, usarBotoes);
-          return NextResponse.json({ ok: true, sessao: "iniciada" });
+          return decidir({ ok: true, sessao: "iniciada" }, "modo finanças iniciado");
         }
-        if (!sessaoAtiva(sessao, agora)) return NextResponse.json({ ok: true, ignorado: "fora do modo finanças" });
+        if (!sessaoAtiva(sessao, agora)) return decidir({ ok: true, ignorado: "fora do modo finanças" }, "ignorado (modo finanças não iniciado)");
         if (comando === "encerrar") {
           await gravarInterno("_whatsapp_sessoes", conversa, null);
           await responderEvolution(recebida, MSG_FIM, BOTOES_FIM, usarBotoes);
-          return NextResponse.json({ ok: true, sessao: "encerrada" });
+          return decidir({ ok: true, sessao: "encerrada" }, "modo finanças encerrado");
         }
         await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
       }
@@ -228,7 +254,7 @@ export async function POST(req: Request) {
         : r.botoes;
       respondido = await responderEvolution(recebida, r.resposta, botoes, banco.config.whatsappBotoes !== false);
     }
-    return NextResponse.json({ ok: r.ok, pessoa, resposta: r.resposta, respondido });
+    return decidir({ ok: r.ok, pessoa, resposta: r.resposta, respondido }, `processado como ${pessoa}${r.ops.length ? " (lançou)" : ""}${respondido === false ? " — FALHA ao responder pela Evolution" : ""}`);
   } catch (e) {
     console.error("whatsapp", e);
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });
