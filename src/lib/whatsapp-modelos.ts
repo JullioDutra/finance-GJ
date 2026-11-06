@@ -4,12 +4,25 @@
 
 import type { Categoria } from "./types";
 
-/** Linha divisória — também marca as mensagens do próprio robô (evita responder a si mesmo). */
+/** Linha divisória das versões antigas (ainda reconhecida como mensagem do robô). */
 export const DIVISOR = "━━━━━━━━━━━━━━━━━━";
 
+/** Marca invisível no começo de toda mensagem do robô (evita responder a si mesmo). */
+export const MARCA = "\u2063";
+
 export function ehMensagemDoRobo(texto: string): boolean {
-  const t = texto.trim();
-  return t.includes(DIVISOR) || t.startsWith("🤖");
+  const t = texto.trimStart();
+  return t.startsWith(MARCA) || t.includes(DIVISOR) || t.startsWith("🤖");
+}
+
+/** Tira emojis coloridos (mantém símbolos simples como • ✓ ○ ▲ ▼ ─ ▰ ▱). */
+export function semEmojis(texto: string): string {
+  return texto
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[\u{FE0F}\u{200D}\u{20E3}\u{1F3FB}-\u{1F3FF}]/gu, "")
+    .split("\n")
+    .map((l) => l.replace(/^[ \t]+/, "").replace(/ {2,}/g, " "))
+    .join("\n");
 }
 
 const EMOJI_ICONE: Record<string, string> = {
@@ -54,37 +67,44 @@ export function tabela(linhas: ([string, string] | "---")[]): string {
 }
 
 /** Cartão padrão: título, divisória, corpo e rodapé opcional em itálico. */
+/**
+ * Mensagem padrão do robô, estilo "texto limpo": título em negrito, corpo e rodapé discreto em itálico.
+ * Sem emojis; blocos ``` (tabelas) são preservados como estão.
+ */
 export function cartao(titulo: string, corpo: (string | null | false | undefined)[], rodape?: string): string {
   const linhas = corpo.filter((x): x is string => typeof x === "string");
-  return [titulo, DIVISOR, ...linhas, ...(rodape ? [DIVISOR, `_${rodape}_`] : [])].join("\n");
+  const limpo = (t: string) => t.split(/(```[\s\S]*?```)/).map((parte) => (parte.startsWith("```") ? parte : semEmojis(parte))).join("");
+  const texto = [limpo(titulo).trim(), ...linhas.map(limpo), ...(rodape ? ["", `_${semEmojis(rodape).trim()}_`] : [])].join("\n");
+  return MARCA + texto.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export const MSG_AJUDA = cartao(
-  "📖 *Como usar o G&J Finanças*",
+  "*Como usar o G&J Finanças*",
   [
-    "*Lançar*",
-    "🛒 `mercado 154,90`",
-    "🚗 `gastei 45 uber`",
-    "💰 `recebi 3500 salário`",
-    "🐷 `guardei 500` _(reserva do casamento)_",
-    "✅ `paguei luz` _(conta do dia 6)_",
     "",
-    "*Ajustes no lançamento*",
-    "📅 termine com `ontem` ou `12/03`",
-    "👥 inclua `casal` para lançar como do casal",
+    "*Lançar*",
+    "- `mercado 154,90`",
+    "- `gastei 45 uber`",
+    "- `recebi 3500 salário`",
+    "- `guardei 500` _(reserva do casamento)_",
+    "- `paguei luz` _(conta do dia 6)_",
+    "- termine com `ontem` ou `12/03` para mudar a data",
+    "- `desfazer` apaga o último lançamento",
     "",
     "*Agenda*",
-    "📅 `agenda` · `agenda amanhã` · `agenda semana`",
-    "➕ `marcar sexta 19h dentista`",
-    "🗑️ `desmarcar dentista`",
-    "🔎 `buscar buffet`",
-    "📋 lista: `marcar` e um item por linha",
-    "📝 `tarefa olhar cartório` · `tarefas`",
+    "- `agenda` · `agenda amanhã` · `agenda semana` · `agenda 21/11`",
+    "- `marcar sexta 19h dentista`",
+    "- `desmarcar dentista`",
+    "- `buscar vestido` · `buscar 21/11`",
+    "- vários de uma vez: `marcar` e um item por linha",
+    "",
+    "*Casamento*",
+    "- `tarefa olhar convites` · `tarefas` · `casamento`",
     "",
     "*Consultas*",
-    "`resumo` · `contas` · `casamento`",
+    "- `resumo` · `contas`",
   ],
-  "Para sair do modo finanças mande encerrar",
+  "Quando der certo, eu reajo com ✓ na sua mensagem",
 );
 
 // ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
@@ -94,23 +114,23 @@ export interface BotaoWhats {
 }
 
 export const BT = {
-  resumo: { id: "resumo", texto: "📊 Resumo" },
-  contas: { id: "contas", texto: "🗓️ Contas" },
-  casamento: { id: "casamento", texto: "💍 Casamento" },
-  ajuda: { id: "ajuda", texto: "📖 Ajuda" },
-  encerrar: { id: "encerrar", texto: "👋 Encerrar" },
-  iniciar: { id: "iniciar finanças", texto: "💰 Iniciar finanças" },
-  desfazer: (lancamentoId: string): BotaoWhats => ({ id: `desfazer ${lancamentoId}`, texto: "↩️ Desfazer" }),
+  resumo: { id: "resumo", texto: "Resumo" },
+  contas: { id: "contas", texto: "Contas" },
+  casamento: { id: "casamento", texto: "Casamento" },
+  ajuda: { id: "ajuda", texto: "Ajuda" },
+  encerrar: { id: "encerrar", texto: "Encerrar" },
+  iniciar: { id: "iniciar finanças", texto: "Iniciar finanças" },
+  desfazer: (lancamentoId: string): BotaoWhats => ({ id: `desfazer ${lancamentoId}`, texto: "Desfazer" }),
 } as const;
 
 /** Separa um cartão em título / corpo / rodapé (formato usado pelos botões). */
 export function separarCartao(texto: string): { titulo: string; corpo: string; rodape: string } {
-  const linhas = texto.split("\n");
-  const titulo = (linhas[0] ?? "").replace(/^\*|\*$/g, "").replace(/\*/g, "");
+  const linhas = texto.replace(MARCA, "").split("\n");
+  const titulo = (linhas[0] ?? "").replace(/\*/g, "").trim();
   let fim = linhas.length;
   let rodape = "";
-  const ult = linhas[linhas.length - 1] ?? "";
-  if (linhas.length >= 3 && linhas[linhas.length - 2] === DIVISOR && /^_.*_$/.test(ult)) {
+  const ult = (linhas[linhas.length - 1] ?? "").trim();
+  if (linhas.length >= 3 && /^_.*_$/.test(ult) && (linhas[linhas.length - 2].trim() === "" || linhas[linhas.length - 2] === DIVISOR)) {
     rodape = ult.slice(1, -1);
     fim = linhas.length - 2;
   }

@@ -17,7 +17,17 @@ export interface ResultadoMensagem {
   ok: boolean;
   /** botões de resposta rápida (opcional; o texto sozinho continua completo) */
   botoes?: BotaoWhats[];
+  /** quando der certo: só reagir na mensagem (ex.: "✅") em vez de responder em texto */
+  reagir?: string;
+  /** consultas: mandar como cartão em imagem (o texto vira a reserva se a imagem falhar) */
+  imagem?: PedidoImagem;
 }
+
+export type PedidoImagem =
+  | { tipo: "resumo"; mes: string }
+  | { tipo: "contas"; mes: string }
+  | { tipo: "casamento" }
+  | { tipo: "agenda"; de: string; ate: string; titulo: string };
 
 const PALAVRAS_RECEITA = ["recebi", "receita", "entrada", "ganhei", "salario", "+"];
 const PALAVRAS_GUARDAR = ["guardei", "guardar", "reservei", "poupei", "investi", "aporte"];
@@ -130,8 +140,9 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
         return {
           ok: true,
           ops: [{ tipo: "delete", colecao: "eventos", id: ultimoEv.id }],
-          resposta: cartao("🗑️ *Compromisso removido*", [`~${ultimoEv.titulo}~ · ${rotuloDia(ultimoEv.data, hoje)}`]),
-          botoes: [{ id: "agenda hoje", texto: "📅 Hoje" }, { id: "agenda semana", texto: "🗓️ Semana" }],
+          resposta: cartao("*Compromisso removido*", [`~${ultimoEv.titulo}~ · ${rotuloDia(ultimoEv.data, hoje)}`]),
+          botoes: [{ id: "agenda hoje", texto: "Hoje" }, { id: "agenda semana", texto: "Semana" }],
+          reagir: "✅",
         };
       }
     }
@@ -149,8 +160,9 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     return {
       ok: true,
       ops,
-      resposta: cartao("↩️ *Lançamento desfeito*", [`~${emojiCategoria(cat)} ${alvo.descricao} · ${dinheiro(alvo.valor)}~`, alvo.contaId ? "_A conta voltou para pendente._" : null], "Pode lançar de novo com o valor certo"),
+      resposta: cartao("*Lançamento desfeito*", [`~${cat?.nome ?? ""} · ${alvo.descricao} · ${dinheiro(alvo.valor)}~`, alvo.contaId ? "_A conta voltou para pendente._" : null], "Pode lançar de novo com o valor certo"),
       botoes: [BT.resumo, BT.contas, BT.encerrar],
+      reagir: "✅",
     };
   }
 
@@ -160,7 +172,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     const r = resumoMes(b, mes);
     const ant = resumoMes(b, somarMeses(mes, -1));
     const vCasa = variacao(r.casa, ant.casa);
-    const top = r.porCategoria.slice(0, 3).map((c, i) => `${i + 1}. ${emojiCategoria(c.categoria)} ${c.categoria.nome} · ${dinheiro(c.total)}`);
+    const top = r.porCategoria.slice(0, 3).map((c, i) => `${i + 1}. ${c.categoria.nome} — ${dinheiro(c.total)}`);
     return {
       ok: true,
       ops: [],
@@ -184,6 +196,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
         "Detalhes e gráficos no app",
       ),
       botoes: [BT.contas, BT.casamento, BT.encerrar],
+      imagem: { tipo: "resumo", mes },
     };
   }
 
@@ -195,18 +208,19 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
     }
     const linhas = lista.map((c) =>
       c.pago
-        ? `✅ ~${c.conta.nome}~ · ${dinheiro(c.valor)}`
-        : `${c.atrasada ? "⚠️" : "⬜"} ${c.conta.nome} · ${dinheiro(c.valor)}${c.atrasada ? " _(atrasada)_" : ` _(vence ${dataCurta(c.vencimento)})_`}`,
+        ? `✓ ~${c.conta.nome}~ · ${dinheiro(c.valor)}`
+        : `○ ${c.conta.nome} · ${dinheiro(c.valor)}${c.atrasada ? " · *atrasada*" : ` _(vence ${dataCurta(c.vencimento)})_`}`,
     );
     return {
       ok: true,
       ops: [],
       resposta: cartao(
         `🗓️ *Contas do dia ${b.config.diaPadraoContas} · ${mesNome}*`,
-        [`${barra(t.qtd ? t.qtdPagas / t.qtd : 0)}  ${t.qtdPagas} de ${t.qtd} pagas`, "", ...linhas, "", t.falta > 0 ? `💸 Falta pagar: *${dinheiro(t.falta)}*` : "🎉 *Tudo pago este mês!*"],
+        [`${barra(t.qtd ? t.qtdPagas / t.qtd : 0)}  ${t.qtdPagas} de ${t.qtd} pagas`, "", ...linhas, "", t.falta > 0 ? `Falta pagar: *${dinheiro(t.falta)}*` : "*Tudo pago este mês.*"],
         "Para marcar como paga: paguei luz",
       ),
       botoes: [BT.resumo, BT.casamento, BT.encerrar],
+      imagem: { tipo: "contas", mes },
     };
   }
 
@@ -236,6 +250,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
         "Lista completa em Casamento → Fornecedores",
       ),
       botoes: [BT.resumo, BT.contas, BT.encerrar],
+      imagem: { tipo: "casamento" },
     };
   }
 
@@ -293,6 +308,7 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
           );
         })(),
         botoes: [BT.desfazer(`lc-${conta.id}-${mesConta}`), BT.contas, BT.encerrar],
+        reagir: "✅",
       };
     }
   }
@@ -354,5 +370,6 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
       "Errou? Mande desfazer",
     ),
     botoes: [BT.desfazer(op.id), BT.resumo, BT.encerrar],
+    reagir: "✅",
   };
 }

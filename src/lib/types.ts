@@ -22,6 +22,10 @@ export interface Configuracoes {
   whatsappExtraP2?: string[];
   /** mostrar botões de resposta rápida nas mensagens do robô (padrão: sim) */
   whatsappBotoes?: boolean;
+  /** consultas (resumo, agenda, contas, casamento) como cartão em imagem (padrão: sim) */
+  whatsappImagens?: boolean;
+  /** lançamentos e marcações confirmados só com reação ✅ (padrão: sim) */
+  whatsappReacoes?: boolean;
   /** grupo de finanças do WhatsApp (jid), registrado com "ativar grupo" */
   grupoWhatsapp?: string;
   /** quando ligado, o robô lê SOMENTE o grupo de finanças e ignora todo o resto */

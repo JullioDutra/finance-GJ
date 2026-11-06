@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { aplicarNoServidor, bancoConfigurado, carregarBanco, gravarInterno, lerInterno } from "@/lib/server/db";
 import { identificarPessoa, processarMensagem } from "@/lib/whatsapp";
+import { aplicarOps } from "@/lib/ops";
 import type { PessoaId } from "@/lib/types";
 import { extrairMensagem, type Recebida } from "@/lib/whatsapp-entrada";
 import {
@@ -17,7 +18,8 @@ import {
   type SessaoWhatsapp,
 } from "@/lib/whatsapp-sessao";
 import { BT } from "@/lib/whatsapp-modelos";
-import { separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
+import { MARCA, separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
+import { gerarCartao } from "@/lib/server/cartoes";
 
 // Webhook do WhatsApp. Provedores aceitos:
 //  • Evolution API (principal)          -> responde pela API da Evolution (/message/sendText)
@@ -63,20 +65,60 @@ function dadosEvolution(r: Recebida) {
   return servidor && apikey && instancia && r.responderPara ? { servidor, apikey, instancia } : null;
 }
 
+/** POST na Evolution. Devolve se deu certo e guarda o id da mensagem enviada (anti-loop). */
 async function postEvolution(caminho: string, apikey: string, corpo: unknown): Promise<boolean> {
   try {
     const res = await fetch(caminho, {
       method: "POST",
       headers: { apikey, "Content-Type": "application/json" },
       body: JSON.stringify(corpo),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) console.error("evolution: falha ao responder", caminho.split("/").slice(-2, -1)[0], res.status, (await res.text()).slice(0, 300));
-    return res.ok;
+    if (!res.ok) {
+      console.error("evolution: falha ao responder", caminho.split("/").slice(-2, -1)[0], res.status, (await res.text()).slice(0, 300));
+      return false;
+    }
+    const json = (await res.json().catch(() => ({}))) as { key?: { id?: string } };
+    if (json.key?.id) await registrarEnviada(json.key.id);
+    return true;
   } catch (e) {
     console.error("evolution: erro ao responder", e);
     return false;
   }
+}
+
+/** Guarda os ids das mensagens do robô para nunca reprocessá-las (limpa as de mais de 2 dias). */
+async function registrarEnviada(id: string) {
+  try {
+    await gravarInterno("_whatsapp_enviadas", id, { id, quando: Date.now() });
+    if (Math.random() < 0.05) {
+      const limite = Date.now() - 2 * 86_400_000;
+      for (const e of await lerInterno<{ id: string; quando: number }>("_whatsapp_enviadas")) if (e.quando < limite) await gravarInterno("_whatsapp_enviadas", e.id, null);
+    }
+  } catch (e) {
+    console.error("whatsapp: não registrou mensagem enviada", e);
+  }
+}
+
+/** Reage à mensagem recebida (ex.: ✅) em vez de responder em texto. */
+async function reagirEvolution(r: Recebida, emoji: string): Promise<boolean> {
+  const d = dadosEvolution(r);
+  if (!d || !r.chave) return false;
+  return postEvolution(`${d.servidor}/message/sendReaction/${encodeURIComponent(d.instancia)}`, d.apikey, { key: r.chave, reaction: emoji });
+}
+
+/** Envia um cartão em imagem (PNG em base64) com uma legenda curta. */
+async function imagemEvolution(r: Recebida, base64: string, legenda: string): Promise<boolean> {
+  const d = dadosEvolution(r);
+  if (!d) return false;
+  return postEvolution(`${d.servidor}/message/sendMedia/${encodeURIComponent(d.instancia)}`, d.apikey, {
+    number: r.responderPara,
+    mediatype: "image",
+    mimetype: "image/png",
+    fileName: "gj.png",
+    caption: `${MARCA}${legenda}`,
+    media: base64,
+  });
 }
 
 /** Responde pela Evolution: com botões (se houver e estiverem ligados) e, se falhar, em texto puro. */
@@ -151,6 +193,11 @@ export async function POST(req: Request) {
 
   try {
     const banco = await carregarBanco();
+    // mensagem enviada pelo próprio robô (pelo id) — nunca processar
+    if (recebida.propria && recebida.chave?.id) {
+      const enviadas = await lerInterno<{ id: string }>("_whatsapp_enviadas");
+      if (enviadas.some((e) => e.id === recebida.chave!.id)) return NextResponse.json({ ok: true, ignorado: "mensagem do robô" });
+    }
     const conhecida = identificarPessoa(banco, recebida.de);
     let pessoa: PessoaId = conhecida ?? "casal";
     let noGrupoFinancas = false;
@@ -247,15 +294,30 @@ export async function POST(req: Request) {
       });
     }
     let respondido: boolean | undefined;
+    let modoResposta = "";
     if (recebida.provedor === "meta") await responderMeta(recebida.de, r.resposta);
     if (recebida.provedor === "evolution") {
       // no grupo de finanças não existe "encerrar" (está sempre ativo)
       const botoes = noGrupoFinancas
         ? [...new Map((r.botoes ?? []).map((bt) => (bt.id === "encerrar" ? BT.ajuda : bt)).map((bt) => [bt.id, bt])).values()]
         : r.botoes;
-      respondido = await responderEvolution(recebida, r.resposta, botoes, banco.config.whatsappBotoes !== false);
+      const usarImagens = banco.config.whatsappImagens !== false;
+      const usarReacoes = banco.config.whatsappReacoes !== false;
+      if (r.ok && usarReacoes && r.reagir && recebida.chave) {
+        // confirmação limpa: só reage na mensagem
+        respondido = await reagirEvolution(recebida, r.reagir);
+        if (respondido) modoResposta = "reação";
+      } else if (usarImagens && r.imagem) {
+        const cartaoImg = await gerarCartao(aplicarOps(banco, r.ops), r.imagem, hojeSP());
+        if (cartaoImg) respondido = await imagemEvolution(recebida, cartaoImg.base64, cartaoImg.legenda);
+        if (respondido) modoResposta = "imagem";
+      }
+      if (!respondido) {
+        respondido = await responderEvolution(recebida, r.resposta, botoes, banco.config.whatsappBotoes !== false);
+        modoResposta = "texto";
+      }
     }
-    return decidir({ ok: r.ok, pessoa, resposta: r.resposta, respondido }, `processado como ${pessoa}${r.ops.length ? " (lançou)" : ""}${respondido === false ? " — FALHA ao responder pela Evolution" : ""}`);
+    return decidir({ ok: r.ok, pessoa, resposta: r.resposta, respondido }, `processado como ${pessoa}${r.ops.length ? " (lançou)" : ""}${modoResposta ? ` · respondeu com ${modoResposta}` : ""}${respondido === false ? " — FALHA ao responder pela Evolution" : ""}`);
   } catch (e) {
     console.error("whatsapp", e);
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });

@@ -23,6 +23,8 @@ export interface Recebida {
   grupo?: boolean;
   /** número da própria instância (dígitos) */
   dono?: string;
+  /** chave original da mensagem (para reagir a ela) */
+  chave?: { remoteJid: string; fromMe: boolean; id: string; participant?: string };
 }
 
 type Json = Record<string, unknown>;
@@ -95,6 +97,9 @@ function evolution(body: Json): Recebida | "ignorar" | null {
     propria: fromMe,
     grupo,
     dono: digitos(dono),
+    chave: str(key.id)
+      ? { remoteJid: str(key.remoteJid), fromMe, id: str(key.id), ...(str(key.participant) ? { participant: str(key.participant) } : {}) }
+      : undefined,
   };
 }
 

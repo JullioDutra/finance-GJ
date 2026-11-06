@@ -70,6 +70,12 @@ O app responde usando o `server_url`, `instance` e `apikey` que a própria Evolu
 Se preferir fixar, cadastre na Vercel `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_INSTANCE`.
 Se o número da instância for de um de vocês, a conversa “comigo mesmo” também funciona.
 
+Estilo das respostas (Ajustes → WhatsApp → Estilo das respostas, cada um pode ser desligado):
+- **Reação ✅** na própria mensagem quando um lançamento, conta paga ou compromisso dá certo (sem texto extra).
+- **Cartão em imagem** para consultas (`resumo`, `contas`, `casamento`, `agenda`). Se a imagem falhar, vai em texto.
+- **Texto limpo, sem emojis** para erros, avisos e respostas curtas.
+- Prévia dos cartões: `/api/cartao?tipo=resumo|contas|casamento|agenda` (logado).
+
 Agenda: `agenda` · `agenda amanhã` · `agenda semana` · `marcar sexta 19h dentista` · `desmarcar dentista` · `buscar buffet`.
 
 Exemplos: `mercado 154,90` · `gastei 45 uber` · `recebi 3500 salário` · `guardei 500` · `paguei luz` · `resumo` · `contas` · `casamento`.
@@ -81,6 +87,7 @@ Também aceita Meta Cloud API, Twilio, Z-API e JSON genérico (`{"from": "5511..
 src/app/              telas (finanças em /, casamento em /casamento) e APIs (/api/dados, /api/whatsapp, /api/login)
 src/lib/calc.ts       cálculos (resumo do mês, contas do dia 6, plano de pagamento dos fornecedores)
 src/lib/whatsapp.ts   interpretação das mensagens
+src/lib/server/cartoes.tsx  cartões em imagem do WhatsApp (fontes em assets/fonts)
 src/lib/ops.ts        operações de escrita (usadas pelo app, WhatsApp e importação)
 src/lib/store.tsx     dados no navegador (sincroniza com a nuvem ou salva localmente)
 supabase/schema.sql   estrutura do banco

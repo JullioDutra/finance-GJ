@@ -15,13 +15,15 @@ interface Resultado {
   ops: Op[];
   resposta: string;
   botoes?: BotaoWhats[];
+  reagir?: string;
+  imagem?: { tipo: "agenda"; de: string; ate: string; titulo: string };
 }
 
 const BT_AG = {
-  hoje: { id: "agenda hoje", texto: "📅 Hoje" },
-  amanha: { id: "agenda amanhã", texto: "📅 Amanhã" },
-  semana: { id: "agenda semana", texto: "🗓️ Semana" },
-  desmarcar: (id: string): BotaoWhats => ({ id: `desmarcar-id ${id}`, texto: "↩️ Desfazer" }),
+  hoje: { id: "agenda hoje", texto: "Hoje" },
+  amanha: { id: "agenda amanhã", texto: "Amanhã" },
+  semana: { id: "agenda semana", texto: "Semana" },
+  desmarcar: (id: string): BotaoWhats => ({ id: `desmarcar-id ${id}`, texto: "Desfazer" }),
 };
 
 const EMOJI_TIPO: Record<string, string> = {
@@ -32,11 +34,10 @@ const EMOJI_TIPO: Record<string, string> = {
 const nomeP = (b: Banco, p: PessoaId) => (p === "p1" ? b.config.nomeP1 : p === "p2" ? b.config.nomeP2 : "");
 
 function linhaItem(b: Banco, i: ItemAgenda, comDia: boolean, hoje: string): string {
-  const emoji = EMOJI_TIPO[i.evento?.tipo ?? i.tipo] ?? "📌";
   const quando = [comDia ? rotuloDia(i.data, hoje) : "", i.hora].filter(Boolean).join(" · ");
   const quem = nomeP(b, i.pessoa);
   const extra = [i.evento?.local, quem].filter(Boolean).join(" · ");
-  return `${emoji} ${quando ? `*${quando}* — ` : ""}${i.titulo}${extra ? ` _(${extra})_` : ""}`;
+  return `- ${quando ? `*${quando}* — ` : ""}${i.titulo}${extra ? ` _(${extra})_` : ""}`;
 }
 
 const PREFIXOS_MARCAR = ["marcar", "marca", "marque", "agendar", "agende", "agenda:", "novo compromisso"];
@@ -83,8 +84,9 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
     return {
       ok: true,
       ops: [],
-      resposta: cartao(titulo, linhas.length ? linhas : ["Nada marcado. 🙌"], "Para marcar: marcar sexta 19h dentista"),
-      botoes: [arg === "amanha" || arg === "amanhã" ? BT_AG.hoje : BT_AG.amanha, BT_AG.semana, { id: "ajuda", texto: "📖 Ajuda" }],
+      resposta: cartao(titulo, linhas.length ? linhas : ["Nada marcado."], "Para marcar: marcar sexta 19h dentista"),
+      imagem: { tipo: "agenda", de, ate, titulo: titulo.replace(/\*/g, "").replace(/^[^\p{L}]+/u, "") },
+      botoes: [arg === "amanha" || arg === "amanhã" ? BT_AG.hoje : BT_AG.amanha, BT_AG.semana, { id: "ajuda", texto: "Ajuda" }],
     };
   }
 
@@ -115,7 +117,8 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
         ok: true,
         ops: [{ tipo: "upsert", colecao: "tarefas", id: t.id, dados: t }],
         resposta: cartao("📝 *Tarefa anotada*", [`⬜ *${t.titulo}*`, `🏷️ ${t.grupo}${t.prazo ? ` · até ${rotuloDia(t.prazo, hoje)}` : ""}`], "Veja em Casamento → Tarefas"),
-        botoes: [{ id: "tarefas", texto: "📝 Tarefas" }, BT_AG.semana],
+        botoes: [{ id: "tarefas", texto: "Tarefas" }, BT_AG.semana],
+        reagir: "✅",
       };
     }
   }
@@ -144,7 +147,7 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
     const id = texto.split(" ")[1];
     const ev = b.eventos.find((e) => e.id === id);
     if (!ev) return { ok: false, ops: [], resposta: cartao("↩️ *Nada para desfazer*", ["Esse compromisso já foi removido."]) };
-    return { ok: true, ops: [{ tipo: "delete", colecao: "eventos", id }], resposta: cartao("🗑️ *Compromisso removido*", [`~${ev.titulo}~ · ${rotuloDia(ev.data, hoje)}`]), botoes: [BT_AG.hoje, BT_AG.semana] };
+    return { ok: true, ops: [{ tipo: "delete", colecao: "eventos", id }], resposta: cartao("*Compromisso removido*", [`~${ev.titulo}~ · ${rotuloDia(ev.data, hoje)}`]), botoes: [BT_AG.hoje, BT_AG.semana], reagir: "✅" };
   }
 
   // ----- desmarcar -----
@@ -175,8 +178,9 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
     return {
       ok: true,
       ops: [{ tipo: "delete", colecao: "eventos", id: ev.id }],
-      resposta: cartao("🗑️ *Compromisso removido*", [`~${ev.titulo}~`, `_${rotuloDia(ev.data, hoje)}${ev.hora ? " · " + ev.hora : ""}_`], "Mande agenda para ver o que ficou"),
+      resposta: cartao("*Compromisso removido*", [`~${ev.titulo}~`, `_${rotuloDia(ev.data, hoje)}${ev.hora ? " · " + ev.hora : ""}_`], "Mande agenda para ver o que ficou"),
       botoes: [BT_AG.hoje, BT_AG.semana],
+      reagir: "✅",
     };
   }
 
@@ -235,7 +239,8 @@ export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje:
         ],
         "Errou? Mande desfazer ou desmarcar",
       ),
-      botoes: [BT_AG.desmarcar(ev.id), { id: `agenda ${ev.data.slice(8)}/${ev.data.slice(5, 7)}`, texto: "📅 Ver o dia" }, BT_AG.semana],
+      botoes: [BT_AG.desmarcar(ev.id), { id: `agenda ${ev.data.slice(8)}/${ev.data.slice(5, 7)}`, texto: "Ver o dia" }, BT_AG.semana],
+      reagir: "✅",
     };
   }
 
@@ -394,7 +399,7 @@ export function processarLista(b: Banco, textoOriginal: string, pessoa: PessoaId
     ok: true,
     ops,
     resposta: cartao("📋 *Lista adicionada*", corpo, semData.length ? "Para os sem data: marcar <dia> <o quê>" : "Errou algo? Mande desfazer lista"),
-    botoes: [{ id: `desmarcar-lote ${lote}`, texto: "↩️ Desfazer tudo" }, BT_AG.semana, BT_AG.hoje],
+    botoes: [{ id: `desmarcar-lote ${lote}`, texto: "Desfazer tudo" }, BT_AG.semana, BT_AG.hoje],
   };
 }
 
@@ -416,5 +421,6 @@ export function desfazerLote(b: Banco, texto: string, hoje: string): Resultado |
     ops: [...evs.map((e): Op => ({ tipo: "delete", colecao: "eventos", id: e.id })), ...tfs.map((t): Op => ({ tipo: "delete", colecao: "tarefas", id: t.id }))],
     resposta: cartao("🗑️ *Lista desfeita*", [`Removi ${evs.length} compromisso(s)${tfs.length ? ` e ${tfs.length} tarefa(s)` : ""}.`], `Hoje é ${rotuloDia(hoje, hoje)}`),
     botoes: [BT_AG.hoje, BT_AG.semana],
+    reagir: "✅",
   };
 }

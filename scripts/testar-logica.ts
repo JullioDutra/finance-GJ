@@ -4,7 +4,7 @@ import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
 import { comandoSessao, ehAtivarGrupo, MSG_INICIO, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
-import { separarCartao } from "../src/lib/whatsapp-modelos";
+import { MSG_AJUDA, separarCartao } from "../src/lib/whatsapp-modelos";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda } from "../src/lib/agenda";
 import { aplicarOps } from "../src/lib/ops";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
@@ -201,7 +201,7 @@ b = aplicarOps(b, rd.ops);
 assert.ok(!b.lancamentos.some((l) => l.id === idL));
 // separar cartão em título/corpo/rodapé para os botões
 const partes = separarCartao(MSG_INICIO);
-assert.equal(partes.titulo, "👋 Modo finanças ativo");
+assert.equal(partes.titulo, "Modo finanças ativo");
 assert.ok(partes.corpo.startsWith("Pode mandar") && partes.rodape.startsWith("Para sair"));
 
 // ---------- modo finanças (iniciar / encerrar) ----------
@@ -337,6 +337,24 @@ assert.ok(ra.resposta.includes(`${ba.tarefas.filter((t) => !t.feita).length} pen
 // lançamentos continuam funcionando
 ra = wa("mercado 20");
 assert.ok(ra.ok && ba.lancamentos.length === 1, ra.resposta);
+
+// estilo das respostas: sem emojis, reação nos lançamentos e imagem nas consultas
+const emoji = /\p{Extended_Pictographic}/u;
+const semEmoji = (t: string) => assert.ok(!emoji.test(t), `tem emoji: ${t}`);
+semEmoji(MSG_AJUDA.replace("✓", ""));
+semEmoji(MSG_INICIO);
+for (const cmd of ["resumo", "contas", "casamento", "agenda", "agenda semana", "tarefas", "ajuda", "xyz qualquer coisa", "desfazer"]) {
+  semEmoji(wa(cmd).resposta);
+}
+ra = wa("uber 15");
+assert.equal(ra.reagir, "✅");
+assert.equal(wa("resumo").imagem?.tipo, "resumo");
+if (ba.contas.length) assert.equal(wa("contas").imagem?.tipo, "contas");
+assert.equal(processarMensagem(b, "contas", "p1", HOJE).imagem?.tipo, "contas");
+assert.equal(wa("casamento").imagem?.tipo, "casamento");
+assert.equal(wa("agenda semana").imagem?.tipo, "agenda");
+assert.equal(wa("marcar 20/12 dentista").reagir, "✅");
+assert.equal(wa("xyz qualquer coisa").reagir, undefined);
 
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);

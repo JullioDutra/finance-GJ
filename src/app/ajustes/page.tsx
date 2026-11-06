@@ -406,24 +406,60 @@ function GrupoFinancas() {
 
 function OpcaoBotoes() {
   const { banco, aplicar } = useDados();
-  const ligado = banco.config.whatsappBotoes !== false;
+  const salvar = (dados: Partial<Configuracoes>, msg: string) => aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, ...dados } }], msg);
+  const opcoes: { campo: "whatsappReacoes" | "whatsappImagens" | "whatsappBotoes"; titulo: string; desc: string }[] = [
+    { campo: "whatsappReacoes", titulo: "Confirmar com reação ✓", desc: "Lançamentos, contas pagas, compromissos e tarefas recebem só uma reação na mensagem de vocês — sem resposta em texto." },
+    { campo: "whatsappImagens", titulo: "Consultas como cartão em imagem", desc: "resumo, contas, casamento e agenda chegam como imagem com a cara do app. Desligado, vêm em texto." },
+    { campo: "whatsappBotoes", titulo: "Botões nas conversas privadas", desc: "Atalhos clicáveis (não aparecem em grupos). Se aparecer “mensagem não suportada”, desligue." },
+  ];
   return (
-    <label className="mt-3 flex items-start gap-3 rounded-xl border border-line p-3 text-sm">
-      <input
-        type="checkbox"
-        checked={ligado}
-        onChange={(e) =>
-          aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, whatsappBotoes: e.target.checked } }], e.target.checked ? "Botões ligados" : "Botões desligados")
-        }
-        className="mt-0.5 h-5 w-5 accent-[var(--brand)]"
-      />
-      <span>
-        Mostrar botões nas mensagens do robô <span className="text-muted">(Resumo, Contas, Desfazer…)</span>
-        <span className="block text-xs text-muted">
-          Se no celular de vocês aparecer “mensagem não suportada” ou os botões não surgirem, desligue — o robô volta a mandar só o texto.
-        </span>
-      </span>
-    </label>
+    <div className="mt-4 space-y-2">
+      <div className="rotulo">Estilo das respostas</div>
+      {opcoes.map((o) => {
+        const ligado = banco.config[o.campo] !== false;
+        return (
+          <label key={o.campo} className="flex items-start gap-3 rounded-xl border border-line p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={ligado}
+              onChange={(e) => salvar({ [o.campo]: e.target.checked }, `${o.titulo}: ${e.target.checked ? "ligado" : "desligado"}`)}
+              className="mt-0.5 h-5 w-5 accent-[var(--brand)]"
+            />
+            <span>
+              {o.titulo}
+              <span className="block text-xs text-muted">{o.desc}</span>
+            </span>
+          </label>
+        );
+      })}
+      <PreviaCartoes />
+    </div>
+  );
+}
+
+function PreviaCartoes() {
+  const { modo } = useDados();
+  const [tipo, setTipo] = useState<"resumo" | "agenda" | "contas" | "casamento" | null>(null);
+  const [versao, setVersao] = useState(0);
+  if (modo !== "nuvem") return null;
+  return (
+    <div className="rounded-xl border border-line p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-muted">Ver prévia do cartão:</span>
+        {(["resumo", "agenda", "contas", "casamento"] as const).map((t) => (
+          <button key={t} type="button" onClick={() => {
+              setTipo(tipo === t ? null : t);
+              setVersao(Date.now());
+            }} className={cx("rounded-full border px-3 py-1 capitalize", tipo === t ? "border-brand bg-brand-soft text-brand" : "border-line text-muted hover:text-ink")}>
+            {t}
+          </button>
+        ))}
+      </div>
+      {tipo && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={tipo} src={`/api/cartao?tipo=${tipo}&v=${versao}`} alt={`Prévia do cartão ${tipo}`} className="mx-auto mt-3 w-full max-w-sm rounded-2xl border border-line" />
+      )}
+    </div>
   );
 }
 

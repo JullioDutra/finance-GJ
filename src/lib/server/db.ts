@@ -118,7 +118,7 @@ export async function carregarBanco(): Promise<Banco> {
 }
 
 // ---------- coleções internas (só o servidor lê; nunca vão para o navegador) ----------
-export type ColecaoInterna = "_passkeys" | "_whatsapp_sessoes" | "_whatsapp_recusados";
+export type ColecaoInterna = "_passkeys" | "_whatsapp_sessoes" | "_whatsapp_recusados" | "_whatsapp_enviadas";
 
 export async function lerInterno<T>(colecao: ColecaoInterna): Promise<T[]> {
   return (await lerTudo()).filter((l) => l.colecao === colecao).map((l) => l.dados as T);
