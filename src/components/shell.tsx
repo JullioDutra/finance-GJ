@@ -4,7 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
+  CalendarClock,
   CalendarDays,
+  CalendarHeart,
   CircleCheckBig,
   Cloud,
   HandCoins,
@@ -15,6 +17,7 @@ import {
   Plus,
   Printer,
   ReceiptText,
+  Search,
   Settings,
   Wallet,
   type LucideIcon,
@@ -22,6 +25,7 @@ import {
 import { useDados } from "@/lib/store";
 import type { Lancamento, TipoLancamento } from "@/lib/types";
 import { FormLancamento } from "./form-lancamento";
+import { AgendaCtx, FormEvento, type AbrirEvento } from "./agenda";
 import { cx, Modal } from "./ui";
 
 interface ItemNav {
@@ -37,11 +41,17 @@ const NAV_FINANCAS: ItemNav[] = [
   { href: "/relatorio", nome: "Relatório", icone: Printer },
 ];
 
+const NAV_AGENDA: ItemNav[] = [
+  { href: "/agenda", nome: "Próximos", icone: CalendarClock },
+  { href: "/agenda/calendario", nome: "Calendário", icone: CalendarDays },
+  { href: "/agenda/buscar", nome: "Buscar", icone: Search },
+];
+
 const NAV_CASAMENTO: ItemNav[] = [
   { href: "/casamento", nome: "Painel", icone: Heart },
   { href: "/casamento/fornecedores", nome: "Fornecedores", icone: HandCoins },
   { href: "/casamento/organizacao", nome: "Tarefas", icone: ListChecks },
-  { href: "/casamento/calendario", nome: "Agenda", icone: CalendarDays },
+  { href: "/casamento/calendario", nome: "Agenda", icone: CalendarHeart },
   { href: "/casamento/relatorio", nome: "Relatório", icone: Printer },
 ];
 
@@ -66,6 +76,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [modal, setModal] = useState<{ editar?: Lancamento; tipo?: TipoLancamento } | null>(null);
   const abrir = useCallback((o?: { editar?: Lancamento; tipo?: TipoLancamento }) => setModal(o ?? {}), []);
   const fechar = useCallback(() => setModal(null), []);
+  const [modalEv, setModalEv] = useState<AbrirEvento | null>(null);
+  const abrirEvento = useCallback((o?: AbrirEvento) => setModalEv(o ?? {}), []);
+  const fecharEvento = useCallback(() => setModalEv(null), []);
 
   useEffect(() => {
     if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
@@ -76,11 +89,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
   if (path === "/login") return <>{children}</>;
 
   const casamento = path.startsWith("/casamento");
-  const nav = casamento ? NAV_CASAMENTO : NAV_FINANCAS;
-  const ativo = (href: string) => (href === "/" || href === "/casamento" ? path === href : path.startsWith(href));
+  const agendaArea = path.startsWith("/agenda");
+  const financas = !casamento && !agendaArea;
+  const nav = casamento ? NAV_CASAMENTO : agendaArea ? NAV_AGENDA : NAV_FINANCAS;
+  const ativo = (href: string) => (href === "/" || href === "/casamento" || href === "/agenda" ? path === href : path.startsWith(href));
+  const novo = agendaArea ? () => abrirEvento() : () => abrir();
 
   return (
     <LancamentoCtx.Provider value={{ abrir }}>
+     <AgendaCtx.Provider value={{ abrir: abrirEvento }}>
       {/* ===== Barra lateral (computador) ===== */}
       <aside className="no-print fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface/70 px-4 py-6 backdrop-blur lg:flex">
         <Link href="/" className="px-2">
@@ -90,13 +107,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
         <button
           type="button"
-          onClick={() => abrir()}
+          onClick={novo}
           className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-brand-ink shadow-sm hover:bg-brand-2"
         >
-          <Plus className="h-4 w-4" strokeWidth={2.4} /> Novo lançamento
+          <Plus className="h-4 w-4" strokeWidth={2.4} /> {agendaArea ? "Novo compromisso" : "Novo lançamento"}
         </button>
 
         <GrupoNav titulo="Finanças" icone={Wallet} itens={NAV_FINANCAS} ativo={ativo} />
+        <GrupoNav titulo="Agenda" icone={CalendarDays} itens={NAV_AGENDA} ativo={ativo} />
         <GrupoNav titulo="Casamento" icone={Heart} itens={NAV_CASAMENTO} ativo={ativo} />
 
         <div className="mt-auto space-y-1 pt-6">
@@ -108,16 +126,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
       {/* ===== Topo (celular / tablet) ===== */}
       <header className="no-print sticky top-0 z-30 border-b border-line bg-bg/85 pt-[env(safe-area-inset-top)] backdrop-blur-md lg:hidden">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-2.5">
-          <Link href={casamento ? "/casamento" : "/"} aria-label="Início">
+          <Link href={casamento ? "/casamento" : agendaArea ? "/agenda" : "/"} aria-label="Início" className="shrink-0">
             <Monograma />
           </Link>
-          <div className="ml-auto inline-flex rounded-xl border border-line bg-surface-2/70 p-0.5 text-[0.8rem]">
-            <Link href="/" className={cx("inline-flex items-center gap-1.5 rounded-[10px] px-3 py-1.5", !casamento ? "bg-surface font-medium text-ink shadow-sm" : "text-muted")}>
-              <Wallet className="h-3.5 w-3.5" /> Finanças
-            </Link>
-            <Link href="/casamento" className={cx("inline-flex items-center gap-1.5 rounded-[10px] px-3 py-1.5", casamento ? "bg-surface font-medium text-ink shadow-sm" : "text-muted")}>
-              <Heart className="h-3.5 w-3.5" /> Casamento
-            </Link>
+          <div className="ml-auto inline-flex min-w-0 rounded-xl border border-line bg-surface-2/70 p-0.5 text-[0.78rem]">
+            {[
+              { href: "/", nome: "Finanças", icone: Wallet, on: financas },
+              { href: "/agenda", nome: "Agenda", icone: CalendarDays, on: agendaArea },
+              { href: "/casamento", nome: "Casamento", icone: Heart, on: casamento },
+            ].map((a) => (
+              <Link
+                key={a.href}
+                href={a.href}
+                className={cx("inline-flex items-center gap-1 rounded-[10px] px-2.5 py-1.5", a.on ? "bg-surface font-medium text-ink shadow-sm" : "text-muted")}
+              >
+                <a.icone className="h-3.5 w-3.5 shrink-0" /> <span className={cx(!a.on && "hidden min-[400px]:inline")}>{a.nome}</span>
+              </Link>
+            ))}
           </div>
           <Link
             href="/ajustes"
@@ -158,7 +183,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <nav className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden">
         <div className="mx-auto flex max-w-lg items-stretch justify-around px-1">
           {nav.map((n, i) => (
-            <FragmentoNav key={n.href} n={n} ativo={ativo(n.href)} meio={!casamento && i === 2 ? () => abrir() : undefined} />
+            <FragmentoNav
+              key={n.href}
+              n={n}
+              ativo={ativo(n.href)}
+              meio={(financas && i === 2) || (agendaArea && i === 2) ? novo : undefined}
+              rotulo={agendaArea ? "Novo compromisso" : "Novo lançamento"}
+            />
           ))}
         </div>
       </nav>
@@ -166,6 +197,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <Modal aberto={modal !== null} aoFechar={fechar} titulo={modal?.editar ? "Editar lançamento" : "Novo lançamento"}>
         {modal && <FormLancamento key={modal.editar?.id ?? "novo"} editar={modal.editar} tipoInicial={modal.tipo} aoTerminar={fechar} />}
       </Modal>
+      <Modal aberto={modalEv !== null} aoFechar={fecharEvento} titulo={modalEv?.editar ? "Editar compromisso" : "Novo compromisso"}>
+        {modalEv && <FormEvento key={modalEv.editar?.id ?? `novo-${modalEv.data ?? ""}`} inicial={modalEv} aoTerminar={fecharEvento} />}
+      </Modal>
+     </AgendaCtx.Provider>
     </LancamentoCtx.Provider>
   );
 }
@@ -214,7 +249,7 @@ function IndicadorModo({ modo }: { modo: string }) {
   );
 }
 
-function FragmentoNav({ n, ativo, meio }: { n: ItemNav; ativo: boolean; meio?: () => void }) {
+function FragmentoNav({ n, ativo, meio, rotulo }: { n: ItemNav; ativo: boolean; meio?: () => void; rotulo: string }) {
   const Icone = n.icone;
   return (
     <>
@@ -223,7 +258,7 @@ function FragmentoNav({ n, ativo, meio }: { n: ItemNav; ativo: boolean; meio?: (
           <button
             type="button"
             onClick={meio}
-            aria-label="Novo lançamento"
+            aria-label={rotulo}
             className="-mt-5 grid h-14 w-14 place-items-center rounded-2xl bg-brand text-brand-ink shadow-lg shadow-brand/30 ring-4 ring-bg active:scale-95"
           >
             <Plus className="h-6 w-6" strokeWidth={2.4} />

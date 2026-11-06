@@ -5,6 +5,8 @@ import type { Banco, Categoria, PessoaId, TipoLancamento } from "./types";
 import { dataCurta, diasEntre, dinheiro, isoDe, mesDe, nomeMes, parseValor, semAcento, somarMeses } from "./format";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "./calc";
 import { opNovoLancamento, opsDesfazerConta, opsPagarConta, type Op } from "./ops";
+import { processarAgenda } from "./whatsapp-agenda";
+import { rotuloDia } from "./agenda";
 import { barra, BT, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela, type BotaoWhats } from "./whatsapp-modelos";
 
 export const AJUDA_WHATSAPP = MSG_AJUDA;
@@ -102,8 +104,29 @@ export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao:
   }
 
   // desfazer: "desfazer <id>" (botão) ou "desfazer" (último lançamento pelo WhatsApp desta pessoa, hoje)
+  // agenda: agenda / marcar / desmarcar / buscar
+  const agenda = processarAgenda(b, texto, pessoaPadrao, hoje);
+  if (agenda) return agenda;
+
   if (norm === "desfazer" || norm.startsWith("desfazer ")) {
     const id = texto.split(" ")[1];
+    // "desfazer" sem id: se a última coisa feita pelo WhatsApp foi um compromisso, desfaz ele
+    if (!id) {
+      const ultimoEv = b.eventos
+        .filter((e) => e.origem === "whatsapp" && (e.criadoEm ?? "").slice(0, 10) >= hoje.slice(0, 10))
+        .sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0];
+      const ultimoLanc = b.lancamentos
+        .filter((l) => (l.origem === "whatsapp" || l.origem === "conta_fixa") && l.data === hoje && l.pessoa === pessoaPadrao)
+        .sort((x, y) => (y.criadoEm ?? "").localeCompare(x.criadoEm ?? ""))[0];
+      if (ultimoEv && (!ultimoLanc || (ultimoEv.criadoEm ?? "") > (ultimoLanc.criadoEm ?? ""))) {
+        return {
+          ok: true,
+          ops: [{ tipo: "delete", colecao: "eventos", id: ultimoEv.id }],
+          resposta: cartao("🗑️ *Compromisso removido*", [`~${ultimoEv.titulo}~ · ${rotuloDia(ultimoEv.data, hoje)}`]),
+          botoes: [{ id: "agenda hoje", texto: "📅 Hoje" }, { id: "agenda semana", texto: "🗓️ Semana" }],
+        };
+      }
+    }
     const alvo = id
       ? b.lancamentos.find((l) => l.id === id)
       : [...b.lancamentos]

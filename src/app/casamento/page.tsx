@@ -40,7 +40,7 @@ export default function PainelCasamento() {
     .sort((a, b) => (a.prazo || "9999").localeCompare(b.prazo || "9999"))
     .slice(0, 5);
   const proxEventos = banco.eventos
-    .filter((e) => e.data >= hoje)
+    .filter((e) => e.data >= hoje && (e.area ?? "casamento") === "casamento")
     .sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora))
     .slice(0, 5);
   const proxVenc = p.fornecedores.filter((f) => !f.quitado && f.situacao !== "sem_valor").slice(0, 5);
@@ -124,7 +124,7 @@ export default function PainelCasamento() {
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card
           titulo="Situação dos pagamentos"
           icone={Wallet}
@@ -188,7 +188,7 @@ export default function PainelCasamento() {
         </Card>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card titulo="Próximos pagamentos" icone={Receipt}>
           {proxVenc.length ? (
             <ul className="space-y-3 text-sm">

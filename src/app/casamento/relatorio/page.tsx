@@ -15,7 +15,7 @@ export default function RelatorioCasamento() {
   const hoje = hojeISO();
   const p = planoCasamento(banco, mesAtual());
   const pendentes = banco.tarefas.filter((t) => !t.feita).sort((a, b) => (a.prazo || "9999").localeCompare(b.prazo || "9999"));
-  const eventos = banco.eventos.filter((e) => e.data >= hoje).sort((a, b) => a.data.localeCompare(b.data));
+  const eventos = banco.eventos.filter((e) => e.data >= hoje && (e.area ?? "casamento") === "casamento").sort((a, b) => a.data.localeCompare(b.data));
   const data = banco.config.dataCasamento;
 
   return (
@@ -121,7 +121,7 @@ export default function RelatorioCasamento() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card titulo={`Tarefas pendentes (${pendentes.length})`} icone={ListChecks}>
           <ul className="space-y-1 text-sm">
             {pendentes.map((t) => (

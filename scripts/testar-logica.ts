@@ -5,6 +5,7 @@ import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
 import { comandoSessao, ehAtivarGrupo, MSG_INICIO, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
 import { separarCartao } from "../src/lib/whatsapp-modelos";
+import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda } from "../src/lib/agenda";
 import { aplicarOps } from "../src/lib/ops";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
@@ -216,6 +217,61 @@ const t0 = 1_000_000;
 assert.equal(sessaoAtiva(undefined, t0), false);
 assert.equal(sessaoAtiva({ id: "x", expira: novaExpiracao(t0) }, t0 + 9 * 60_000), true);
 assert.equal(sessaoAtiva({ id: "x", expira: novaExpiracao(t0) }, t0 + 11 * 60_000), false);
+
+// ---------- agenda ----------
+// HOJE = 2026-11-05 (quinta-feira)
+assert.equal(extrairData("amanhã dentista", HOJE).data, "2026-11-06");
+assert.equal(extrairData("sexta 19h dentista", HOJE).data, "2026-11-06");
+assert.equal(extrairData("na segunda-feira reunião", HOJE).data, "2026-11-09");
+assert.equal(extrairData("quinta", HOJE).data, "2026-11-12", "mesmo dia da semana = próxima");
+assert.equal(extrairData("15/01 consulta", HOJE).data, "2027-01-15", "data passada sem ano = ano que vem");
+assert.equal(extrairData("dia 20 aniversário", HOJE).data, "2026-11-20");
+assert.equal(extrairData("depois de amanhã x", HOJE).data, "2026-11-07");
+assert.equal(extrairData("dia 3", HOJE).data, "2026-12-03");
+assert.deepEqual(extrairHora("19h dentista"), { hora: "19:00", resto: "dentista" });
+assert.equal(extrairHora("às 10:30 reunião").hora, "10:30");
+assert.equal(extrairHora("19h30 jantar").hora, "19:30");
+assert.equal(areaPorTitulo("degustação do buffet"), "casamento");
+assert.equal(areaPorTitulo("dentista"), "casal");
+
+let ba: Banco = { ...bancoVazio(), fornecedores: [], pagamentosFornecedores: [] };
+const wa = (t: string, p: "p1" | "p2" = "p2") => {
+  const r = processarMensagem(ba, t, p, HOJE);
+  ba = aplicarOps(ba, r.ops);
+  return r;
+};
+let ra = wa("marcar sexta 19h dentista");
+assert.ok(ra.ok, ra.resposta);
+assert.equal(ba.eventos.length, 1);
+assert.deepEqual([ba.eventos[0].titulo, ba.eventos[0].data, ba.eventos[0].hora, ba.eventos[0].area, ba.eventos[0].pessoa, ba.eventos[0].tipo], ["Dentista", "2026-11-06", "19:00", "casal", "p2", "consulta"]);
+ra = wa("agendar 15/11 10:30 degustação buffet");
+assert.equal(ba.eventos[1].area, "casamento"); assert.equal(ba.eventos[1].pessoa, "casal"); assert.equal(ba.eventos[1].tipo, "prova");
+wa("marcar amanhã aniversário da mãe casal");
+assert.equal(ba.eventos[2].pessoa, "casal");
+// listar
+ra = wa("agenda amanhã");
+assert.ok(ra.resposta.includes("Dentista") && ra.resposta.includes("Aniversário da mãe") && !ra.resposta.includes("buffet"));
+ra = wa("agenda semana");
+assert.ok(ra.resposta.includes("Dentista") && !ra.resposta.includes("degustação"));
+ra = wa("agenda 15/11");
+assert.ok(ra.resposta.toLowerCase().includes("degustação"));
+// buscar
+assert.equal(buscarNaAgenda(itensAgenda(ba, { hoje: HOJE }), "buffet").length, 1);
+ra = wa("buscar dentista");
+assert.ok(ra.resposta.includes("Dentista"));
+// desmarcar
+ra = wa("desmarcar dentista");
+assert.ok(ra.ok && !ba.eventos.some((e) => e.titulo === "Dentista"));
+ra = wa("desmarcar inexistente");
+assert.equal(ra.ok, false);
+// desfazer sem id remove o último compromisso marcado pelo WhatsApp
+wa("marcar sábado 20h pizza");
+assert.ok(ba.eventos.some((e) => e.titulo === "Pizza"));
+ra = wa("desfazer");
+assert.ok(ra.ok && !ba.eventos.some((e) => e.titulo === "Pizza"), ra.resposta);
+// lançamentos continuam funcionando
+ra = wa("mercado 20");
+assert.ok(ra.ok && ba.lancamentos.length === 1);
 
 console.log("✅ Todos os testes de lógica passaram");
 console.log("\nExemplo de resposta do WhatsApp:\n" + processarMensagem(b, "resumo", "p1", HOJE).resposta);

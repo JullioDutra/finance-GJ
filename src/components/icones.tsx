@@ -1,6 +1,8 @@
 import {
   Banknote,
+  Bell,
   Briefcase,
+  BriefcaseBusiness,
   CakeSlice,
   Camera,
   Car,
@@ -30,6 +32,7 @@ import {
   ShoppingCart,
   Sofa,
   Sparkles,
+  Stethoscope,
   Tag,
   Users,
   UtensilsCrossed,
@@ -152,5 +155,10 @@ export const ICONES_EVENTO: Record<string, LucideIcon> = {
   prova: CakeSlice,
   visita: MapPin,
   pagamento: Banknote,
+  consulta: Stethoscope,
+  trabalho: BriefcaseBusiness,
+  social: PartyPopper,
+  viagem: Plane,
+  lembrete: Bell,
   outro: Pin,
 };

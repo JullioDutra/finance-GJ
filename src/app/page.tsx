@@ -108,7 +108,7 @@ export default function PainelFinancas() {
         </Vazio>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card titulo="Receita, gasto e guardado" icone={ChartColumn} className="lg:col-span-2" acao={<span className="text-xs text-muted">últimos 6 meses</span>}>
           <BarrasMensais
             rotulos={rotulos}
@@ -129,7 +129,7 @@ export default function PainelFinancas() {
         </Card>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <Card titulo="Custo da casa" icone={House} className="lg:col-span-2">
           <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="display num text-3xl font-medium">{dinheiro(r.casa)}</span>
@@ -162,7 +162,7 @@ export default function PainelFinancas() {
         </Card>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <Card titulo="Para onde vai a renda" icone={Wallet}>
           {r.receitas > 0 ? (
             <div className="space-y-3.5 text-sm">

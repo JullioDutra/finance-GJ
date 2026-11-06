@@ -164,7 +164,7 @@ export default function Relatorio() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card titulo="Gastos por categoria" icone={Tags}>
           {categorias.length ? (
             <Ranking total={tot.despesas} itens={categorias.map(([id, c]) => ({ chave: id, rotulo: <RotuloCategoria categoria={c.categoria} />, valor: c.total }))} />
@@ -210,7 +210,7 @@ export default function Relatorio() {
       </div>
 
       {unico && (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Card titulo={`Contas do dia ${banco.config.diaPadraoContas}`} icone={CircleCheckBig}>
             {contas.length ? (
               <>

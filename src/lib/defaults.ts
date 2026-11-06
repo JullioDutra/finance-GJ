@@ -173,8 +173,18 @@ export const CATEGORIAS_FORNECEDOR = [
 
 export const TIPOS_EVENTO: Record<string, { nome: string }> = {
   reuniao: { nome: "Reunião" },
+  consulta: { nome: "Consulta / saúde" },
+  trabalho: { nome: "Trabalho / estudo" },
+  social: { nome: "Social / aniversário" },
+  viagem: { nome: "Viagem" },
   prova: { nome: "Prova / degustação" },
   visita: { nome: "Visita" },
   pagamento: { nome: "Pagamento" },
+  lembrete: { nome: "Lembrete" },
   outro: { nome: "Outro" },
+};
+
+export const AREAS_EVENTO: Record<string, { nome: string }> = {
+  casal: { nome: "Dia a dia" },
+  casamento: { nome: "Casamento" },
 };

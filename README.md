@@ -3,6 +3,7 @@
 Controle financeiro do casal até o casamento + organização do casamento. Instalável no celular (PWA).
 
 - **Finanças:** lançamentos, painel (receita x gasto x guardado, custo da casa mês a mês, tópicos mais gastos), checklist das **contas do dia 6**, relatório para imprimir/PDF e lançamentos **pelo WhatsApp**.
+- **Agenda:** calendário compartilhado do casal (dia a dia + casamento), com próximos compromissos, calendário do mês, busca e comandos pelo WhatsApp (`agenda`, `marcar sexta 19h dentista`, `desmarcar…`, `buscar…`).
 - **Casamento:** fornecedores (o que **já dá para pagar** com o guardado e o que falta), organização (checklist), agenda/calendário, painel e relatório.
 
 O planejamento completo de cada área está em [`docs/PLANEJAMENTO.md`](docs/PLANEJAMENTO.md).
@@ -68,6 +69,8 @@ npm run testar
 O app responde usando o `server_url`, `instance` e `apikey` que a própria Evolution envia no webhook.
 Se preferir fixar, cadastre na Vercel `EVOLUTION_API_URL`, `EVOLUTION_API_KEY` e `EVOLUTION_INSTANCE`.
 Se o número da instância for de um de vocês, a conversa “comigo mesmo” também funciona.
+
+Agenda: `agenda` · `agenda amanhã` · `agenda semana` · `marcar sexta 19h dentista` · `desmarcar dentista` · `buscar buffet`.
 
 Exemplos: `mercado 154,90` · `gastei 45 uber` · `recebi 3500 salário` · `guardei 500` · `paguei luz` · `resumo` · `contas` · `casamento`.
 

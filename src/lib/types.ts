@@ -106,14 +106,35 @@ export interface Tarefa {
   observacao: string;
 }
 
+export type TipoEvento =
+  | "reuniao"
+  | "prova"
+  | "visita"
+  | "pagamento"
+  | "consulta"
+  | "trabalho"
+  | "social"
+  | "viagem"
+  | "lembrete"
+  | "outro";
+
+/** "casamento" = organização do casamento; "casal" = dia a dia */
+export type AreaEvento = "casamento" | "casal";
+
 export interface Evento {
   id: string;
   titulo: string;
   data: string; // YYYY-MM-DD
   hora: string; // HH:MM ou ""
   local: string;
-  tipo: "reuniao" | "prova" | "visita" | "pagamento" | "outro";
+  tipo: TipoEvento;
   observacao: string;
+  /** compromissos antigos (antes da Agenda) não têm área: são do casamento */
+  area?: AreaEvento;
+  /** de quem é o compromisso (padrão: casal) */
+  pessoa?: PessoaId;
+  origem?: "app" | "whatsapp";
+  criadoEm?: string;
 }
 
 export interface Banco {

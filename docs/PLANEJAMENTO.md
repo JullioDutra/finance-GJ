@@ -100,7 +100,16 @@ Resumo financeiro, tabela de fornecedores na ordem de pagamento, tarefas pendent
 
 ---
 
-## 3. Técnico
+## 3. Agenda (área própria, compartilhada)
+- Compromissos do **dia a dia** e do **casamento** num só calendário, com pessoa (Jullio / Gabriella / Casal), tipo, hora, local e observação.
+- **Próximos** (hoje em destaque, amanhã, 7 dias, mais adiante), **Calendário** do mês e **Buscar** (sem acento, por nome/local/observação, datas passadas e futuras).
+- Mostra junto, se quiser, os prazos automáticos: contas do dia 6, vencimentos de fornecedores, prazos de tarefas e o dia do casamento.
+- Ao digitar o nome, sugere área e tipo (ex.: "degustação do buffet" → Casamento / Prova).
+- WhatsApp: `agenda`, `agenda amanhã`, `agenda 15/11`, `agenda semana`, `marcar sexta 19h dentista`, `desmarcar dentista`, `buscar buffet`, `desfazer`.
+
+---
+
+## 4. Técnico
 - **Next.js 16** (App Router) + **Tailwind 4**, todo em português.
 - **PWA**: manifesto, ícones e service worker → instalável no celular (abre em tela cheia, funciona offline para consulta).
 - **Dados**: Neon (Postgres, via integração da Vercel) ou Supabase, numa tabela simples `registros` (coleção + id + JSON) criada automaticamente.
@@ -109,7 +118,7 @@ Resumo financeiro, tabela de fornecedores na ordem de pagamento, tarefas pendent
 - Toda escrita passa por "operações" (`src/lib/ops.ts`) usadas igualmente pelo app, pelo WhatsApp e pela importação.
 - Testes da lógica: `npm run testar`.
 
-## 4. Próximos passos
+## 5. Próximos passos
 1. Conectar o Neon na Vercel (ver README).
 2. Conectar o provedor de WhatsApp (adicionar a skill de WhatsApp para ajustar ao provedor que vocês usam).
 3. Preencher a data limite de cada fornecedor (define a ordem de pagamento) e o valor da Lapela.

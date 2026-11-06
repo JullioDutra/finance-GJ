@@ -36,14 +36,14 @@ export default function Ajustes() {
   return (
     <div className="space-y-5">
       <Titulo titulo="Ajustes" sub="Dados do casal, acesso, categorias, instalação e backup" />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Status />
         <Acesso />
       </div>
       <ConfigCasal />
       <WhatsApp />
       <Categorias />
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <Instalar />
         <Backup />
       </div>
@@ -211,7 +211,7 @@ function ConfigCasal() {
           await aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: nova }], "Ajustes salvos");
         }}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo rotulo="Nome 1">
             <Input value={c.nomeP1} onChange={(e) => set("nomeP1", e.target.value)} />
           </Campo>
@@ -521,7 +521,7 @@ function Categorias() {
       <p className="mb-4 flex items-center gap-1.5 text-xs text-muted">
         <House className="h-3.5 w-3.5" /> = entra no “custo da casa”. Toque numa categoria para editar nome, ícone e palavras-chave.
       </p>
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
         {TIPOS.map((t) => (
           <div key={t.id}>
             <div className="rotulo mb-2">{t.nome}</div>

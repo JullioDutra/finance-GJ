@@ -160,7 +160,7 @@ function Secao({
       {itens.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line p-4 text-sm text-muted">{vazio}</p>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {itens.map((c) => {
             const f = c.fornecedor;
             const vencido = !c.quitado && f.vencimento && f.vencimento < hoje;
