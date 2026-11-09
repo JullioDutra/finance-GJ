@@ -450,8 +450,9 @@ assert.equal(wa("xyz qualquer coisa").reagir, undefined);
 
 // assinatura do robô, evangelho e estudo
 {
-  assert.equal(assinar(MARCA + "*Oi*\ntexto", "Ron Weasley"), MARCA + "*Ron Weasley(bot):*\n*Oi*\ntexto");
-  assert.equal(assinar("Bom dia", ""), MARCA + "Bom dia");
+  assert.equal(assinar(MARCA + "*Oi*\ntexto", "Ron Weasley"), "*Ron Weasley(bot):*\n*Oi*\ntexto" + MARCA);
+  assert.equal(assinar("Bom dia", ""), "Bom dia" + MARCA);
+  assert.ok(assinar(MARCA + "*Oi*", "Ron Weasley").startsWith("*"), "nada antes do * (senão o negrito some)");
   assert.ok(ehMensagemDoRobo(assinar("x", "Ron Weasley")));
   assert.equal(bancoVazio().config.nomeRobo, "Ron Weasley");
   const ev = textoEvangelho({ data: "09/11/2026", liturgia: "Dedicação da Basílica do Latrão", referencia: "Jo 2,13-22", titulo: "Proclamação do Evangelho de Jesus Cristo segundo João", texto: "Estava próxima a Páscoa dos judeus,\n\n\n\n e Jesus subiu a Jerusalém." });

@@ -36,6 +36,25 @@ export interface ConvitePainel {
   confirmacoes_site: ConfirmacaoPainel[];
 }
 
+/** Só o que o cartão em imagem precisa (vai dentro do pedido de imagem). */
+export interface ConviteResumido {
+  nome: string;
+  grupo: string;
+  esperada: number;
+  confirmada: number;
+  faltam: number;
+  confirmado: boolean;
+}
+
+export const resumirConvite = (c: ConvitePainel): ConviteResumido => ({
+  nome: c.nome,
+  grupo: c.grupo,
+  esperada: c.quantidade_esperada,
+  confirmada: c.quantidade_confirmada,
+  faltam: c.faltam,
+  confirmado: c.confirmado,
+});
+
 export interface AvisoConfirmacao {
   evento?: string;
   confirmacao: ConfirmacaoPainel;

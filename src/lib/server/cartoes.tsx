@@ -31,7 +31,7 @@ import { checklistTarefas, type ItemChecklist } from "../tarefas";
 import { MAX_TAREFAS_BOM_DIA, montarBomDia, prazoTarefa, textoMarco } from "../bom-dia";
 import { proximosAniversarios, textoIdade } from "../aniversarios";
 import { diasOcupados } from "../whatsapp-agenda";
-import type { ResumoPainel } from "../convidados";
+import type { ConviteResumido, ResumoPainel } from "../convidados";
 import type { PedidoImagem } from "../whatsapp";
 import { ICONES_EVENTO, iconeDaCategoria } from "@/components/icones";
 import * as Lucide from "lucide";
@@ -911,6 +911,125 @@ function ConvidadosCartao(r: ResumoPainel) {
   };
 }
 
+// ---------- LISTA DE CONVIDADOS (confirmados x aguardando) ----------
+const TITULO_LISTA = { confirmados: "Confirmados", pendentes: "Aguardando resposta", faltando: "Faltando confirmar", todos: "Lista de convidados" } as const;
+
+function LinhaConvidado({ c }: { c: ConviteResumido }) {
+  const parcial = c.confirmada > 0 && c.faltam > 0;
+  const cor = c.confirmado && !parcial ? C.ok : parcial ? C.warn : C.muted;
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: 76 }}>
+      <div
+        style={{
+          display: "flex",
+          width: 44,
+          height: 44,
+          borderRadius: 44,
+          alignItems: "center",
+          justifyContent: "center",
+          background: c.confirmado && !parcial ? C.ok : parcial ? C.warn : "transparent",
+          border: c.confirmado || parcial ? "none" : `3px solid ${C.line}`,
+        }}
+      >
+        {c.confirmado && !parcial ? <Ico icone={Check} size={26} color="#ffffff" strokeWidth={3} /> : parcial ? <Ico icone={Hourglass} size={22} color="#ffffff" strokeWidth={2.5} /> : null}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 24 }}>
+        <div style={{ display: "flex", fontSize: 29, color: c.confirmado || parcial ? C.ink : C.muted, fontWeight: c.confirmado ? 600 : 400 }}>{corta(c.nome, 34)}</div>
+        {parcial && <div style={{ display: "flex", fontSize: 21, color: C.warn }}>{c.faltam === 1 ? "falta 1 pessoa" : `faltam ${c.faltam} pessoas`}</div>}
+      </div>
+      <div style={{ display: "flex", padding: "6px 16px", borderRadius: 20, background: cor + "1a", fontSize: 24, fontWeight: 600, color: cor }}>{`${c.confirmada}/${c.esperada}`}</div>
+    </div>
+  );
+}
+
+function ListaConvidadosCartao(status: keyof typeof TITULO_LISTA, todos: ConviteResumido[]) {
+  const LIM = 36;
+  const ordenar = (l: ConviteResumido[]) => [...l].sort((a, b) => (a.grupo || "~").localeCompare(b.grupo || "~") || a.nome.localeCompare(b.nome));
+  // "todos": confirmados primeiro, depois os que ainda faltam
+  const secoes: { titulo: string; cor: string; itens: ConviteResumido[] }[] =
+    status === "todos"
+      ? [
+          { titulo: "Confirmados", cor: C.ok, itens: ordenar(todos.filter((c) => c.confirmado && !c.faltam)) },
+          { titulo: "Confirmados em parte", cor: C.warn, itens: ordenar(todos.filter((c) => c.confirmada > 0 && c.faltam > 0)) },
+          { titulo: "Aguardando resposta", cor: C.brand, itens: ordenar(todos.filter((c) => c.confirmada === 0)) },
+        ].filter((s) => s.itens.length)
+      : [{ titulo: "", cor: C.brand, itens: ordenar(todos) }];
+  // corta no limite, mantendo as seções
+  let resta = LIM;
+  const visiveis = secoes.map((s) => {
+    const itens = s.itens.slice(0, Math.max(0, resta));
+    resta -= itens.length;
+    return { ...s, itens };
+  }).filter((s) => s.itens.length);
+  const mostrados = visiveis.reduce((n, s) => n + s.itens.length, 0);
+  // subtítulos de grupo (Família, Amigos…) dentro de cada seção
+  const blocos = visiveis.map((s) => {
+    const grupos: { grupo: string; itens: ConviteResumido[] }[] = [];
+    for (const c of s.itens) {
+      const g = c.grupo || "Sem grupo";
+      const ult = grupos[grupos.length - 1];
+      if (ult && ult.grupo === g) ult.itens.push(c);
+      else grupos.push({ grupo: g, itens: [c] });
+    }
+    return { ...s, grupos };
+  });
+  const usarGrupos = todos.some((c) => c.grupo);
+  const esperadas = todos.reduce((n, c) => n + c.esperada, 0);
+  const confirmadas = todos.reduce((n, c) => n + c.confirmada, 0);
+  const faltam = todos.reduce((n, c) => n + c.faltam, 0);
+  const destaque = status === "confirmados" ? confirmadas : status === "todos" ? confirmadas : faltam;
+  const rotuloDestaque = status === "confirmados" || status === "todos" ? `de ${esperadas} pessoas confirmadas` : `pessoa${faltam === 1 ? "" : "s"} sem confirmar`;
+  const altura =
+    56 + 190 + 230 +
+    blocos.reduce((n, s) => n + (status === "todos" ? 74 : 20) + (usarGrupos ? s.grupos.length * 56 : 0) + s.itens.length * 76, 0) +
+    (todos.length > mostrados ? 64 : 0) + (todos.length ? 0 : 140) + 56 + 20;
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo={`Convidados · ${todos.length} convite${todos.length === 1 ? "" : "s"}`} titulo={TITULO_LISTA[status]} />
+        <div style={{ display: "flex", flexDirection: "column", margin: `0 ${PAD}px`, padding: 30, borderRadius: 28, height: 200, background: status === "confirmados" ? C.okSoft : status === "todos" ? C.goldSoft : C.brandSoft }}>
+          <div style={{ display: "flex", alignItems: "baseline" }}>
+            <div style={{ display: "flex", fontFamily: serif, fontSize: 84, lineHeight: 1, color: status === "confirmados" ? C.ok : status === "todos" ? C.ink : C.brand }}>{String(destaque)}</div>
+            <div style={{ display: "flex", fontSize: 28, color: C.muted, marginLeft: 14 }}>{rotuloDestaque}</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 26 }}>
+            <Barra fracao={esperadas ? confirmadas / esperadas : 0} cor={C.ok} altura={14} />
+          </div>
+        </div>
+        {!todos.length && <Vazio texto="Ninguém nessa lista." />}
+        <div style={{ display: "flex", flexDirection: "column", padding: `10px ${PAD}px 0` }}>
+          {blocos.map((s) => (
+            <div key={s.titulo || "lista"} style={{ display: "flex", flexDirection: "column" }}>
+              {status === "todos" ? (
+                <div style={{ display: "flex", height: 74, alignItems: "flex-end", paddingBottom: 10, borderBottom: `2px solid ${C.line}` }}>
+                  <Rotulo cor={s.cor}>{`${s.titulo} · ${s.itens.length}`}</Rotulo>
+                </div>
+              ) : (
+                <div style={{ display: "flex", height: 20 }} />
+              )}
+              {s.grupos.map((g) => (
+                <div key={g.grupo} style={{ display: "flex", flexDirection: "column" }}>
+                  {usarGrupos && (
+                    <div style={{ display: "flex", height: 56, alignItems: "flex-end", paddingBottom: 6 }}>
+                      <div style={{ display: "flex", fontSize: 20, letterSpacing: 2, fontWeight: 600, color: C.muted }}>{g.grupo.toUpperCase()}</div>
+                    </div>
+                  )}
+                  {g.itens.map((c, i) => (
+                    <LinhaConvidado key={c.nome + i} c={c} />
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))}
+          {todos.length > mostrados && <div style={{ display: "flex", height: 64, alignItems: "center", fontSize: 24, color: C.muted }}>{`+${todos.length - mostrados} convite(s) no painel`}</div>}
+        </div>
+      </Moldura>
+    ),
+    legenda: `${TITULO_LISTA[status]} · ${todos.length} convite${todos.length === 1 ? "" : "s"}`,
+  };
+}
+
 /** Gera o cartão como PNG (base64). Devolve null se não der para gerar. */
 export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string): Promise<{ base64: string; legenda: string } | null> {
   try {
@@ -937,6 +1056,8 @@ export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string):
                           ? CalendarioCartao(b, pedido.mes, hoje)
                           : pedido.tipo === "convidados"
                             ? ConvidadosCartao(pedido.resumo)
+                            : pedido.tipo === "lista-convidados"
+                              ? ListaConvidadosCartao(pedido.status, pedido.convites)
                     : Agenda(b, pedido.de, pedido.ate, pedido.titulo || `Agenda de ${rotuloDia(pedido.de, hoje)}`, hoje);
     const img = new ImageResponse(c.jsx, { width: W, height: Math.min(4000, Math.round(c.altura)), fonts: await carregarFontes() });
     const buf = Buffer.from(await img.arrayBuffer());

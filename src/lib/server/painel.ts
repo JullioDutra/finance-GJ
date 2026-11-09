@@ -5,6 +5,7 @@ import { destinosAgendados } from "./agendados";
 import type { Banco } from "../types";
 import {
   buscarConvites,
+  resumirConvite,
   textoAvisoConfirmacoes,
   textoConvite,
   textoListaConvidados,
@@ -69,7 +70,7 @@ export async function executarComandoConvidados(cmd: ComandoConvidados): Promise
     }
     if (cmd.tipo === "lista") {
       const lista = (await listaPainel(cmd.status)).sort((a, b) => a.nome.localeCompare(b.nome));
-      return { ok: true, texto: textoListaConvidados(lista, cmd.status) };
+      return { ok: true, texto: textoListaConvidados(lista, cmd.status), imagem: { tipo: "lista-convidados", status: cmd.status, convites: lista.map(resumirConvite) } };
     }
     if (cmd.tipo === "novo") {
       const existentes = buscarConvites(await listaPainel(), cmd.nome).filter((c) => c.nome.toLowerCase() === cmd.nome.toLowerCase());

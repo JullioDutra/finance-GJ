@@ -12,7 +12,7 @@ export const MARCA = "\u2063";
 
 export function ehMensagemDoRobo(texto: string): boolean {
   const t = texto.trimStart();
-  return t.startsWith(MARCA) || t.includes(DIVISOR) || t.startsWith("🤖");
+  return t.includes(MARCA) || t.includes(DIVISOR) || t.startsWith("🤖");
 }
 
 /** Linha de assinatura do robô ("*Ron Weasley(bot):*"), ou vazio. */
@@ -21,11 +21,14 @@ export function assinatura(nomeRobo: string | undefined): string {
   return n ? `*${n}(bot):*` : "";
 }
 
-/** Coloca a assinatura no começo de uma mensagem do robô (mantém a marca invisível na frente). */
+/**
+ * Mensagem final enviada pelo robô: assinatura na primeira linha e a marca invisível no FIM
+ * (no começo ela impedia o WhatsApp de deixar em negrito o *texto* logo depois dela).
+ */
 export function assinar(texto: string, nomeRobo: string | undefined): string {
   const a = assinatura(nomeRobo);
-  const corpo = texto.startsWith(MARCA) ? texto.slice(MARCA.length) : texto;
-  return a ? `${MARCA}${a}\n${corpo}` : `${MARCA}${corpo}`;
+  const corpo = texto.split(MARCA).join("").trim();
+  return `${a ? `${a}\n` : ""}${corpo}${MARCA}`;
 }
 
 /** Tira emojis coloridos (mantém símbolos simples como • ✓ ○ ▲ ▼ ─ ▰ ▱). */
@@ -151,7 +154,8 @@ export type PedidoImagem =
   | { tipo: "bomdia" }
   | { tipo: "aniversarios" }
   | { tipo: "calendario"; mes: string }
-  | { tipo: "convidados"; resumo: import("./convidados").ResumoPainel };
+  | { tipo: "convidados"; resumo: import("./convidados").ResumoPainel }
+  | { tipo: "lista-convidados"; status: "confirmados" | "pendentes" | "faltando" | "todos"; convites: import("./convidados").ConviteResumido[] };
 
 // ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
 export interface BotaoWhats {
