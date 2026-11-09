@@ -15,6 +15,19 @@ export function ehMensagemDoRobo(texto: string): boolean {
   return t.startsWith(MARCA) || t.includes(DIVISOR) || t.startsWith("🤖");
 }
 
+/** Linha de assinatura do robô ("*Ron Weasley(bot):*"), ou vazio. */
+export function assinatura(nomeRobo: string | undefined): string {
+  const n = (nomeRobo ?? "").trim();
+  return n ? `*${n}(bot):*` : "";
+}
+
+/** Coloca a assinatura no começo de uma mensagem do robô (mantém a marca invisível na frente). */
+export function assinar(texto: string, nomeRobo: string | undefined): string {
+  const a = assinatura(nomeRobo);
+  const corpo = texto.startsWith(MARCA) ? texto.slice(MARCA.length) : texto;
+  return a ? `${MARCA}${a}\n${corpo}` : `${MARCA}${corpo}`;
+}
+
 /** Tira emojis coloridos (mantém símbolos simples como • ✓ ○ ▲ ▼ ─ ▰ ▱). */
 export function semEmojis(texto: string): string {
   return texto
@@ -107,7 +120,11 @@ export const MSG_AJUDA = cartao(
     "*Aniversários*",
     "- `aniversário tia Ana 15/03` · `aniversários`",
     "- `apagar aniversário Ana`",
-    "- todo dia às 7h eu mando o *bom dia* com a agenda e os aniversários",
+    "",
+    "*Todo dia*",
+    "- de manhã: *bom dia* com compromissos, aniversariantes e tarefas, e o evangelho",
+    "- à noite: lembrete de estudar para os concursos",
+    "- `bom dia` · `evangelho` a qualquer hora",
     "",
     "*Consultas*",
     "- `resumo` · `contas`",

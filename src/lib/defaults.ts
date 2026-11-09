@@ -11,6 +11,7 @@ export const CONFIG_PADRAO: Configuracoes = {
   diaPadraoContas: 6,
   telefoneP1: "",
   telefoneP2: "",
+  nomeRobo: "Ron Weasley",
 };
 
 type Cat = Omit<Categoria, "id"> & { id: string };

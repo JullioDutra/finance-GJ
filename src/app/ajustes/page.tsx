@@ -407,14 +407,17 @@ function GrupoFinancas() {
 function OpcaoBotoes() {
   const { banco, aplicar } = useDados();
   const salvar = (dados: Partial<Configuracoes>, msg: string) => aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, ...dados } }], msg);
-  const opcoes: { campo: "whatsappBomDia" | "whatsappReacoes" | "whatsappImagens" | "whatsappBotoes"; titulo: string; desc: string }[] = [
-    { campo: "whatsappBomDia", titulo: "Bom dia às 7h", desc: "Todo dia de manhã: compromissos de hoje, aniversários e o Radar do casal (alertas de gastos, contas e tarefas). Vai para o grupo de finanças." },
+  const opcoes: { campo: "whatsappBomDia" | "whatsappEvangelho" | "whatsappEstudo" | "whatsappReacoes" | "whatsappImagens" | "whatsappBotoes"; titulo: string; desc: string }[] = [
+    { campo: "whatsappBomDia", titulo: "Bom dia (7h–8h)", desc: "Compromissos de hoje, aniversariantes e tarefas a fazer. Nada financeiro. Vai para o grupo de finanças." },
+    { campo: "whatsappEvangelho", titulo: "Evangelho do dia", desc: "Logo depois do bom dia, o evangelho da liturgia diária. A qualquer hora: mande evangelho." },
+    { campo: "whatsappEstudo", titulo: "Lembrete de estudo (20h–21h)", desc: "À noite, um lembrete para estudar para os concursos, com uma dica diferente a cada dia." },
     { campo: "whatsappReacoes", titulo: "Confirmar com reação ✓", desc: "Lançamentos, contas pagas, compromissos e tarefas recebem só uma reação na mensagem de vocês — sem resposta em texto." },
     { campo: "whatsappImagens", titulo: "Consultas como cartão em imagem", desc: "resumo, contas, casamento, agenda, tarefas, aniversários e o bom dia chegam como imagem com a cara do app. Desligado, vêm em texto." },
     { campo: "whatsappBotoes", titulo: "Botões nas conversas privadas", desc: "Atalhos clicáveis (não aparecem em grupos). Se aparecer “mensagem não suportada”, desligue." },
   ];
   return (
     <div className="mt-4 space-y-2">
+      <NomeRobo />
       <div className="rotulo">Estilo das respostas</div>
       {opcoes.map((o) => {
         const ligado = banco.config[o.campo] !== false;
@@ -434,6 +437,22 @@ function OpcaoBotoes() {
         );
       })}
       <PreviaCartoes />
+    </div>
+  );
+}
+
+function NomeRobo() {
+  const { banco, aplicar } = useDados();
+  const [nome, setNome] = useState(banco.config.nomeRobo ?? "");
+  const salvar = () => {
+    if (nome.trim() === (banco.config.nomeRobo ?? "")) return;
+    aplicar([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, nomeRobo: nome.trim() } }], "Nome do robô salvo");
+  };
+  return (
+    <div className="mb-4 rounded-xl border border-line p-3 text-sm">
+      <Campo rotulo="Nome do robô" dica={nome.trim() ? `As mensagens começam com: ${nome.trim()}(bot):` : "Vazio: as mensagens vão sem assinatura"}>
+        <Input value={nome} onChange={(e) => setNome(e.target.value)} onBlur={salvar} placeholder="Ex.: Ron Weasley" maxLength={40} />
+      </Campo>
     </div>
   );
 }

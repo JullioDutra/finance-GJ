@@ -18,7 +18,10 @@ import {
   type SessaoWhatsapp,
 } from "@/lib/whatsapp-sessao";
 import { BT } from "@/lib/whatsapp-modelos";
-import { separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
+import { cartao, separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
+import { buscarEvangelho } from "@/lib/server/evangelho";
+import { textoEvangelho } from "@/lib/evangelho";
+import { semAcento } from "@/lib/format";
 import { enviarImagem, enviarTexto, lembrarConexao, montarConexao, postEvolution, type ConexaoEvolution } from "@/lib/server/evolution";
 import { gerarCartao } from "@/lib/server/cartoes";
 
@@ -71,14 +74,14 @@ async function reagirEvolution(r: Recebida, emoji: string): Promise<boolean> {
 }
 
 /** Envia um cartão em imagem (PNG em base64) com uma legenda curta. */
-async function imagemEvolution(r: Recebida, base64: string, legenda: string): Promise<boolean> {
+async function imagemEvolution(r: Recebida, base64: string, legenda: string, nomeRobo?: string): Promise<boolean> {
   const d = dadosEvolution(r);
   if (!d) return false;
-  return enviarImagem(d, r.responderPara!, base64, legenda);
+  return enviarImagem(d, r.responderPara!, base64, legenda, nomeRobo);
 }
 
 /** Responde pela Evolution: com botões (se houver e estiverem ligados) e, se falhar, em texto puro. */
-async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhats[], usarBotoes = true) {
+async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhats[], usarBotoes = true, nomeRobo?: string) {
   const d = dadosEvolution(r);
   if (!d) {
     console.warn("evolution: sem dados para responder");
@@ -91,12 +94,12 @@ async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhat
       number: r.responderPara,
       title: titulo,
       description: corpo,
-      footer: rodape || "G&J Finanças",
+      footer: rodape || (nomeRobo?.trim() ? `${nomeRobo.trim()}(bot)` : "G&J Finanças"),
       buttons: botoes.slice(0, 3).map((bt) => ({ type: "reply", displayText: bt.texto, id: bt.id })),
     });
     if (ok) return true;
   }
-  return enviarTexto(d, r.responderPara!, texto);
+  return enviarTexto(d, r.responderPara!, texto, nomeRobo);
 }
 
 async function responderMeta(para: string, texto: string) {
@@ -181,7 +184,7 @@ export async function POST(req: Request) {
       // "ativar grupo": registra o grupo atual como grupo de finanças (só um de vocês pode fazer isso)
       if (recebida.grupo && ehAtivarGrupo(recebida.texto) && (conhecida || recebida.propria)) {
         await aplicarNoServidor([{ tipo: "upsert", colecao: "config", id: "config", dados: { ...banco.config, grupoWhatsapp: recebida.responderPara } }]);
-        await responderEvolution(recebida, MSG_GRUPO_ATIVADO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes);
+        await responderEvolution(recebida, MSG_GRUPO_ATIVADO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes, banco.config.nomeRobo);
         return decidir({ ok: true, grupoAtivado: true }, "grupo vinculado");
       }
 
@@ -196,7 +199,7 @@ export async function POST(req: Request) {
         const outra = donoPessoa === "p1" ? "p2" : donoPessoa === "p2" ? "p1" : "casal";
         pessoa = conhecida ?? (recebida.propria ? (donoPessoa ?? "casal") : outra);
         if (comandoSessao(recebida.texto)) {
-          await responderEvolution(recebida, MSG_GRUPO_SEMPRE_ATIVO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes);
+          await responderEvolution(recebida, MSG_GRUPO_SEMPRE_ATIVO, [BT.resumo, BT.contas, BT.ajuda], usarBotoes, banco.config.nomeRobo);
           return decidir({ ok: true, grupo: "sempre ativo" }, "avisou que o grupo está sempre ativo");
         }
       } else {
@@ -228,17 +231,25 @@ export async function POST(req: Request) {
         const comando = comandoSessao(recebida.texto);
         if (comando === "iniciar") {
           await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
-          await responderEvolution(recebida, MSG_INICIO, BOTOES_INICIO, usarBotoes);
+          await responderEvolution(recebida, MSG_INICIO, BOTOES_INICIO, usarBotoes, banco.config.nomeRobo);
           return decidir({ ok: true, sessao: "iniciada" }, "modo finanças iniciado");
         }
         if (!sessaoAtiva(sessao, agora)) return decidir({ ok: true, ignorado: "fora do modo finanças" }, "ignorado (modo finanças não iniciado)");
         if (comando === "encerrar") {
           await gravarInterno("_whatsapp_sessoes", conversa, null);
-          await responderEvolution(recebida, MSG_FIM, BOTOES_FIM, usarBotoes);
+          await responderEvolution(recebida, MSG_FIM, BOTOES_FIM, usarBotoes, banco.config.nomeRobo);
           return decidir({ ok: true, sessao: "encerrada" }, "modo finanças encerrado");
         }
         await gravarInterno("_whatsapp_sessoes", conversa, { id: conversa, expira: novaExpiracao(agora) });
       }
+    }
+
+    // "evangelho": busca o evangelho do dia na hora (precisa de internet, por isso fica fora do processarMensagem)
+    if (recebida.provedor === "evolution" && ["evangelho", "evangelho do dia", "liturgia"].includes(semAcento(recebida.texto.trim()).replace(/[!.?]+$/, ""))) {
+      const ev = await buscarEvangelho(hojeSP());
+      const texto = ev ? textoEvangelho(ev) : cartao("*Evangelho indisponível*", ["Não consegui buscar o evangelho de hoje agora. Tente de novo daqui a pouco."]);
+      const ok = await responderEvolution(recebida, texto, undefined, false, banco.config.nomeRobo);
+      return decidir({ ok: !!ev, respondido: ok }, `evangelho do dia${ev ? "" : " (indisponível)"}`);
     }
 
     const r = processarMensagem(banco, recebida.texto, pessoa, hojeSP());
@@ -265,11 +276,11 @@ export async function POST(req: Request) {
         if (respondido) modoResposta = "reação";
       } else if (usarImagens && r.imagem) {
         const cartaoImg = await gerarCartao(aplicarOps(banco, r.ops), r.imagem, hojeSP());
-        if (cartaoImg) respondido = await imagemEvolution(recebida, cartaoImg.base64, cartaoImg.legenda);
+        if (cartaoImg) respondido = await imagemEvolution(recebida, cartaoImg.base64, cartaoImg.legenda, banco.config.nomeRobo);
         if (respondido) modoResposta = "imagem";
       }
       if (!respondido) {
-        respondido = await responderEvolution(recebida, r.resposta, botoes, banco.config.whatsappBotoes !== false);
+        respondido = await responderEvolution(recebida, r.resposta, botoes, banco.config.whatsappBotoes !== false, banco.config.nomeRobo);
         modoResposta = "texto";
       }
     }

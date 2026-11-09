@@ -4,11 +4,13 @@ import { bancoVazio } from "../src/lib/defaults";
 import { lerPlanilha } from "../src/lib/planilha";
 import { extrairMensagem } from "../src/lib/whatsapp-entrada";
 import { comandoSessao, ehAtivarGrupo, MSG_INICIO, novaExpiracao, sessaoAtiva } from "../src/lib/whatsapp-sessao";
-import { MSG_AJUDA, separarCartao } from "../src/lib/whatsapp-modelos";
+import { assinar, ehMensagemDoRobo, MARCA, MSG_AJUDA, separarCartao } from "../src/lib/whatsapp-modelos";
+import { textoEvangelho } from "../src/lib/evangelho";
+import { textoEstudo } from "../src/lib/estudo";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda } from "../src/lib/agenda";
 import { aplicarOps } from "../src/lib/ops";
 import { proximaData } from "../src/lib/aniversarios";
-import { montarBomDia, radarDoCasal } from "../src/lib/bom-dia";
+import { montarBomDia } from "../src/lib/bom-dia";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
 import { parseValor } from "../src/lib/format";
@@ -424,17 +426,37 @@ assert.equal(wa("xyz qualquer coisa").reagir, undefined);
   assert.equal(r.imagem?.tipo, "bomdia");
   assert.ok(r.resposta.includes("Aniversário hoje") && r.resposta.includes("Tia Ana · 57 anos"), r.resposta);
   semEmoji(r.resposta);
-  // radar: gasto acima do ritmo do mês anterior
+  // bom dia sem nada financeiro: sem contas/fornecedores; tarefas com prazo próximo entram
   const bR = bancoVazio();
-  const cat = bR.categorias.find((c) => c.tipo === "despesa")!.id;
-  const lanc = (data: string, valor: number): Lancamento => ({ id: data + valor, data, tipo: "despesa", valor, categoriaId: cat, descricao: "", pessoa: "p1", origem: "app", criadoEm: "" });
-  bR.lancamentos.push(lanc("2027-02-10", 1000), lanc("2027-03-02", 900));
-  const radar = radarDoCasal(bR, "2027-03-10");
-  assert.ok(radar.some((a) => a.icone === "ritmo" && a.tom === "atencao"), JSON.stringify(radar));
+  bR.contas.push({ id: "c1", nome: "Luz", valor: 100, categoriaId: bR.categorias[0].id, dia: 15, pessoa: "casal", ativa: true, observacao: "" });
+  bR.eventos.push({ id: "e1", titulo: "Dentista", data: "2027-03-15", hora: "09:00", local: "", tipo: "consulta", observacao: "", area: "casal" });
+  bR.tarefas = [
+    { id: "t1", titulo: "Enviar convites", grupo: "Convidados", responsavel: "casal", prazo: "2027-03-10", feita: false, observacao: "" },
+    { id: "t2", titulo: "Provar bolo", grupo: "Festa", responsavel: "casal", prazo: "2027-03-18", feita: false, observacao: "" },
+    { id: "t3", titulo: "Lua de mel", grupo: "Pós-casamento", responsavel: "casal", prazo: "2027-05-01", feita: false, observacao: "" },
+  ];
+  const bd2 = montarBomDia(bR, "2027-03-15");
+  assert.deepEqual(bd2.compromissos.map((i) => i.titulo), ["Dentista"]);
+  assert.deepEqual(bd2.tarefas.map((t) => t.tarefa.titulo), ["Enviar convites", "Provar bolo"]);
+  const txt = processarMensagem(bR, "bom dia", "p1", "2027-03-15").resposta;
+  assert.ok(!/luz|R\$|gasto/i.test(txt) && txt.includes("Tarefas a fazer") && txt.includes("(atrasada)"), txt);
   // marco do casamento
   bR.config.dataCasamento = "2027-06-18";
   assert.equal(montarBomDia(bR, "2027-03-10").marco, 100);
   assert.equal(montarBomDia(bR, "2027-03-11").marco, null);
+}
+
+// assinatura do robô, evangelho e estudo
+{
+  assert.equal(assinar(MARCA + "*Oi*\ntexto", "Ron Weasley"), MARCA + "*Ron Weasley(bot):*\n*Oi*\ntexto");
+  assert.equal(assinar("Bom dia", ""), MARCA + "Bom dia");
+  assert.ok(ehMensagemDoRobo(assinar("x", "Ron Weasley")));
+  assert.equal(bancoVazio().config.nomeRobo, "Ron Weasley");
+  const ev = textoEvangelho({ data: "09/11/2026", liturgia: "Dedicação da Basílica do Latrão", referencia: "Jo 2,13-22", titulo: "Proclamação do Evangelho de Jesus Cristo segundo João", texto: "Estava próxima a Páscoa dos judeus,\n\n\n\n e Jesus subiu a Jerusalém." });
+  assert.ok(ev.includes("*Jo 2,13-22*") && ev.includes("_Dedicação da Basílica do Latrão_") && !ev.includes("\n\n\n"), ev);
+  const es = textoEstudo("2026-11-09");
+  assert.ok(es.includes("Hora de estudar") && es !== textoEstudo("2026-11-10"));
+  semEmoji(es);
 }
 
 console.log("✅ Todos os testes de lógica passaram");

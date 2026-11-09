@@ -19,12 +19,8 @@ import {
   ReceiptText,
   Search,
   Sparkles,
-  TrendingDown,
-  TrendingUp,
   Wallet,
   Sun,
-  HandCoins,
-  ChartColumn,
   type LucideIcon,
 } from "lucide-react";
 import type { Banco } from "../types";
@@ -32,7 +28,7 @@ import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "
 import { diasEntre, dinheiro, nomeMes, somarMeses } from "../format";
 import { buscarNaAgenda, itensAgenda, rotuloDia, type ItemAgenda } from "../agenda";
 import { checklistTarefas, type ItemChecklist } from "../tarefas";
-import { montarBomDia, textoMarco, type AlertaRadar } from "../bom-dia";
+import { MAX_TAREFAS_BOM_DIA, montarBomDia, prazoTarefa, textoMarco } from "../bom-dia";
 import { proximosAniversarios, textoIdade } from "../aniversarios";
 import type { PedidoImagem } from "../whatsapp";
 import { ICONES_EVENTO, iconeDaCategoria } from "@/components/icones";
@@ -609,16 +605,6 @@ function Ajuda() {
 }
 
 // ---------- BOM DIA (7h) ----------
-const TOM: Record<AlertaRadar["tom"], string> = { alerta: C.danger, atencao: C.warn, info: C.receita, bom: C.ok };
-function iconeAlerta(a: AlertaRadar): LucideIcon {
-  if (a.icone === "ritmo") return a.tom === "bom" ? TrendingDown : TrendingUp;
-  if (a.icone === "conta") return ReceiptText;
-  if (a.icone === "tarefa") return ListChecks;
-  if (a.icone === "meta") return PiggyBank;
-  if (a.icone === "fornecedor") return HandCoins;
-  return ChartColumn;
-}
-
 function Secao({ titulo, cor = C.muted, children }: { titulo: string; cor?: string; children: ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", padding: `0 ${PAD}px`, borderTop: `2px solid ${C.line}` }}>
@@ -636,12 +622,13 @@ function BomDiaCartao(b: Banco, hoje: string) {
   const marco = bd.marco;
   const alturaTopo = marco !== null ? 400 : 300;
   const comp = bd.compromissos.slice(0, 8);
+  const tarefas = bd.tarefas.slice(0, MAX_TAREFAS_BOM_DIA);
   const altura =
     56 +
     alturaTopo +
     (bd.aniversariosHoje.length ? 40 + bd.aniversariosHoje.length * 76 : 0) +
     74 + Math.max(1, comp.length) * ROW + (bd.compromissos.length > comp.length ? 50 : 0) +
-    (bd.radar.length ? 74 + bd.radar.length * 104 : 0) +
+    (tarefas.length ? 74 + tarefas.length * 80 + (bd.tarefas.length > tarefas.length ? 50 : 0) : 0) +
     (bd.aniversariosEmBreve.length ? 74 + bd.aniversariosEmBreve.length * 64 : 0) +
     56 + 30;
   const nomesCasal = [b.config.nomeP1, b.config.nomeP2].filter(Boolean).join(" e ");
@@ -686,7 +673,7 @@ function BomDiaCartao(b: Banco, hoje: string) {
           </div>
         )}
 
-        <Secao titulo="Hoje" cor={C.brand}>
+        <Secao titulo="Compromissos de hoje" cor={C.brand}>
           {!comp.length && (
             <div style={{ display: "flex", alignItems: "center", height: ROW, fontSize: 30, color: C.muted }}>
               <Ico icone={Sun} size={32} color={C.gold} />
@@ -709,14 +696,22 @@ function BomDiaCartao(b: Banco, hoje: string) {
           {bd.compromissos.length > comp.length && <div style={{ display: "flex", height: 50, fontSize: 24, color: C.muted }}>{`+${bd.compromissos.length - comp.length} no app`}</div>}
         </Secao>
 
-        {bd.radar.length > 0 && (
-          <Secao titulo="Radar do casal" cor={C.gold}>
-            {bd.radar.map((a, k) => (
-              <div key={k} style={{ display: "flex", alignItems: "center", height: 104 }}>
-                <Chip icone={iconeAlerta(a)} cor={TOM[a.tom]} tamanho={56} />
-                <div style={{ display: "flex", fontSize: 27, color: C.ink, marginLeft: 22, flex: 1, lineHeight: 1.3 }}>{corta(a.texto, 110)}</div>
-              </div>
-            ))}
+        {tarefas.length > 0 && (
+          <Secao titulo="Tarefas a fazer" cor={C.gold}>
+            {tarefas.map((it) => {
+              const prazo = prazoTarefa(it, hoje);
+              const cor = prazo === "atrasada" ? C.danger : prazo === "hoje" ? C.warn : C.muted;
+              return (
+                <div key={it.tarefa.id} style={{ display: "flex", alignItems: "center", height: 80 }}>
+                  <div style={{ display: "flex", width: 46, height: 46, borderRadius: 14, border: `3px solid ${prazo === "atrasada" ? C.danger : C.line}`, alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 600, color: C.muted }}>
+                    {String(it.n)}
+                  </div>
+                  <div style={{ display: "flex", fontSize: 29, color: C.ink, marginLeft: 24, flex: 1 }}>{corta(it.tarefa.titulo, 36)}</div>
+                  <div style={{ display: "flex", fontSize: 23, color: cor, fontWeight: prazo === "atrasada" || prazo === "hoje" ? 600 : 400 }}>{prazo}</div>
+                </div>
+              );
+            })}
+            {bd.tarefas.length > tarefas.length && <div style={{ display: "flex", height: 50, fontSize: 24, color: C.muted }}>{`+${bd.tarefas.length - tarefas.length} (mande tarefas)`}</div>}
           </Secao>
         )}
 

@@ -1,6 +1,6 @@
 import "server-only";
 import { gravarInterno, lerInterno } from "./db";
-import { MARCA } from "../whatsapp-modelos";
+import { assinar } from "../whatsapp-modelos";
 
 // Envio pela Evolution API, usado pelo webhook (respostas) e pelo "bom dia" das 7h (sem mensagem recebida).
 
@@ -82,7 +82,10 @@ export async function postEvolution(c: ConexaoEvolution, rota: string, corpo: un
   }
 }
 
-export const enviarTexto = (c: ConexaoEvolution, para: string, texto: string) => postEvolution(c, "sendText", { number: para, text: texto });
+/** Texto assinado pelo robô ("Ron Weasley(bot):" na primeira linha, conforme Ajustes). */
+export const enviarTexto = (c: ConexaoEvolution, para: string, texto: string, nomeRobo?: string) =>
+  postEvolution(c, "sendText", { number: para, text: assinar(texto, nomeRobo) });
 
-export const enviarImagem = (c: ConexaoEvolution, para: string, base64: string, legenda: string) =>
-  postEvolution(c, "sendMedia", { number: para, mediatype: "image", mimetype: "image/png", fileName: "gj.png", caption: `${MARCA}${legenda}`, media: base64 });
+/** Cartão em imagem com legenda curta (também assinada). */
+export const enviarImagem = (c: ConexaoEvolution, para: string, base64: string, legenda: string, nomeRobo?: string) =>
+  postEvolution(c, "sendMedia", { number: para, mediatype: "image", mimetype: "image/png", fileName: "gj.png", caption: assinar(legenda, nomeRobo), media: base64 });

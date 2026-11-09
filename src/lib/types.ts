@@ -32,6 +32,12 @@ export interface Configuracoes {
   whatsappSomenteGrupo?: boolean;
   /** "bom dia" automático às 7h no grupo (padrão: sim) */
   whatsappBomDia?: boolean;
+  /** evangelho do dia logo depois do bom dia (padrão: sim) */
+  whatsappEvangelho?: boolean;
+  /** lembrete à noite para estudar para os concursos (padrão: sim) */
+  whatsappEstudo?: boolean;
+  /** nome com que o robô assina as mensagens: "<nome>(bot):" (vazio = sem assinatura) */
+  nomeRobo?: string;
 }
 
 export interface Categoria {
