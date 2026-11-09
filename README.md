@@ -77,6 +77,30 @@ Estilo das respostas (Ajustes → WhatsApp → Estilo das respostas, cada um pod
 - **Texto limpo, sem emojis** para erros, avisos e respostas curtas.
 - Prévia dos cartões: `/api/cartao?tipo=resumo|contas|casamento|agenda|tarefas|busca|ajuda` (logado).
 
+### Bom dia às 7h e aniversários
+Todo dia às 7h (Brasília) o robô manda no grupo de finanças um cartão com:
+- os compromissos de hoje;
+- quem faz aniversário hoje (com a idade, se o ano foi cadastrado) e os aniversários dos próximos 7 dias;
+- o **Radar do casal**: contas atrasadas ou vencendo hoje, ritmo de gastos do mês x mês anterior (a partir do dia 10), tarefas atrasadas, meta de guardar (da metade do mês em diante) e, às segundas, como foi a semana e quais fornecedores a reserva já cobre;
+- nos marcos da contagem regressiva (365, 300, 200, 100, 50, 30… 1 dia), um destaque especial.
+
+Como funciona:
+- O agendador da Vercel (`vercel.json`) chama `/api/bom-dia` às 10:00 UTC. No plano Hobby a Vercel garante só a hora (chega entre 7h e 7h59).
+- Defina `CRON_SECRET` na Vercel (a Vercel manda esse segredo sozinha ao chamar).
+- O robô aprende o endereço da Evolution com as mensagens que chegam do grupo: depois do deploy, mande qualquer mensagem no grupo uma vez.
+- Para chegar exatamente às 7:00, use também um cron na VPS (o envio acontece no máximo uma vez por dia, então os dois podem ficar ligados):
+  ```
+  0 7 * * * curl -s "https://financas-gj.vercel.app/api/bom-dia?token=SEU_WHATSAPP_WEBHOOK_TOKEN" >/dev/null
+  ```
+  (no `crontab -e` da VPS, com o fuso em America/Sao_Paulo; se a VPS estiver em UTC, use `0 10 * * *`).
+- Testes: `?previa=1` só mostra o texto; `?forcar=1` manda de novo. Também dá para mandar `bom dia` no grupo a qualquer hora.
+- Liga/desliga em Ajustes → WhatsApp → Estilo das respostas.
+
+Aniversários: tela em **Agenda → Aniversários** e pelo WhatsApp:
+`aniversário tia Ana 15/03` (ou `15/03/1970` para mostrar a idade) · `aniversários` · `apagar aniversário Ana` · vários de uma vez com `aniversários` e uma pessoa por linha. Eles também aparecem no calendário.
+
+Tarefas: `tarefas` (checklist) · `feito 3` · `reabrir convites`.
+
 Agenda: `agenda` · `agenda amanhã` · `agenda semana` · `marcar sexta 19h dentista` · `desmarcar dentista` · `buscar buffet`.
 
 Exemplos: `mercado 154,90` · `gastei 45 uber` · `recebi 3500 salário` · `guardei 500` · `paguei luz` · `resumo` · `contas` · `casamento`.

@@ -7,6 +7,8 @@ import { comandoSessao, ehAtivarGrupo, MSG_INICIO, novaExpiracao, sessaoAtiva } 
 import { MSG_AJUDA, separarCartao } from "../src/lib/whatsapp-modelos";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda } from "../src/lib/agenda";
 import { aplicarOps } from "../src/lib/ops";
+import { proximaData } from "../src/lib/aniversarios";
+import { montarBomDia, radarDoCasal } from "../src/lib/bom-dia";
 import { identificarPessoa, processarMensagem, pessoaPorTelefone } from "../src/lib/whatsapp";
 import { contasDoMes, planoCasamento, resumoMes, totaisContas } from "../src/lib/calc";
 import { parseValor } from "../src/lib/format";
@@ -383,6 +385,56 @@ assert.equal(wa("xyz qualquer coisa").reagir, undefined);
   assert.equal(tw("ajuda").imagem?.tipo, "ajuda");
   assert.equal(tw("marcar 20/12 15h prova do vestido\n21/12 degustação").imagem?.tipo, "lista");
   assert.equal(tw("buscar vestido").imagem?.tipo, "busca");
+}
+
+// aniversários e bom dia
+{
+  const ba2 = bancoVazio();
+  const aw = (t: string, dia = HOJE) => {
+    const r = processarMensagem(ba2, t, "p1", dia);
+    Object.assign(ba2, aplicarOps(ba2, r.ops));
+    return r;
+  };
+  let r = aw("aniversário tia Ana 15/03/1970");
+  assert.ok(r.ok && r.reagir === "✅", r.resposta);
+  assert.deepEqual({ ...ba2.aniversarios[0], id: "" }, { id: "", nome: "Tia Ana", data: "03-15", ano: 1970, relacao: "Família", observacao: "" });
+  r = aw("aniversário tia Ana 15/03/1970");
+  assert.equal(r.ok, false, "não duplica");
+  r = aw("aniversários\nJoão 20/05\nMaria dia 29/02\nsem data aqui");
+  assert.equal(ba2.aniversarios.length, 3, r.resposta);
+  assert.ok(r.resposta.includes("sem data aqui"));
+  r = aw("niver da Bia 01/01");
+  assert.ok(ba2.aniversarios.some((a) => a.nome === "Bia" && a.data === "01-01"), r.resposta);
+  r = aw("aniversários");
+  assert.equal(r.imagem?.tipo, "aniversarios");
+  r = aw("aniversário Ana");
+  assert.ok(r.resposta.includes("15/03"), r.resposta);
+  r = aw("apagar aniversário Bia");
+  assert.ok(r.ok && !ba2.aniversarios.some((a) => a.nome === "Bia"));
+  // 29/02 em ano não bissexto vira 28/02 e aparece na agenda
+  assert.equal(proximaData({ data: "02-29" }, "2027-01-10"), "2027-02-28");
+  assert.equal(proximaData({ data: "02-29" }, "2028-01-10"), "2028-02-29");
+  assert.ok(itensAgenda(ba2, { hoje: "2027-01-10" }).some((i) => i.tipo === "aniversario" && i.data === "2027-03-15" && i.sub.startsWith("57 anos")));
+  // bom dia
+  const dia = "2027-03-15";
+  const bd = montarBomDia(ba2, dia);
+  assert.equal(bd.aniversariosHoje[0]?.aniversario.nome, "Tia Ana");
+  assert.equal(bd.aniversariosHoje[0]?.idade, 57);
+  r = aw("bom dia!", dia);
+  assert.equal(r.imagem?.tipo, "bomdia");
+  assert.ok(r.resposta.includes("Aniversário hoje") && r.resposta.includes("Tia Ana · 57 anos"), r.resposta);
+  semEmoji(r.resposta);
+  // radar: gasto acima do ritmo do mês anterior
+  const bR = bancoVazio();
+  const cat = bR.categorias.find((c) => c.tipo === "despesa")!.id;
+  const lanc = (data: string, valor: number): Lancamento => ({ id: data + valor, data, tipo: "despesa", valor, categoriaId: cat, descricao: "", pessoa: "p1", origem: "app", criadoEm: "" });
+  bR.lancamentos.push(lanc("2027-02-10", 1000), lanc("2027-03-02", 900));
+  const radar = radarDoCasal(bR, "2027-03-10");
+  assert.ok(radar.some((a) => a.icone === "ritmo" && a.tom === "atencao"), JSON.stringify(radar));
+  // marco do casamento
+  bR.config.dataCasamento = "2027-06-18";
+  assert.equal(montarBomDia(bR, "2027-03-10").marco, 100);
+  assert.equal(montarBomDia(bR, "2027-03-11").marco, null);
 }
 
 console.log("✅ Todos os testes de lógica passaram");

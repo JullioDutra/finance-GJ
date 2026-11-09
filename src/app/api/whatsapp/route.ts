@@ -18,7 +18,8 @@ import {
   type SessaoWhatsapp,
 } from "@/lib/whatsapp-sessao";
 import { BT } from "@/lib/whatsapp-modelos";
-import { MARCA, separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
+import { separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
+import { enviarImagem, enviarTexto, lembrarConexao, montarConexao, postEvolution, type ConexaoEvolution } from "@/lib/server/evolution";
 import { gerarCartao } from "@/lib/server/cartoes";
 
 // Webhook do WhatsApp. Provedores aceitos:
@@ -58,67 +59,22 @@ export async function GET(req: Request) {
   });
 }
 
-function dadosEvolution(r: Recebida) {
-  const servidor = (process.env.EVOLUTION_API_URL || r.servidor || "").replace(/\/+$/, "");
-  const apikey = process.env.EVOLUTION_API_KEY || r.apikey || "";
-  const instancia = process.env.EVOLUTION_INSTANCE || r.instancia || "";
-  return servidor && apikey && instancia && r.responderPara ? { servidor, apikey, instancia } : null;
-}
-
-/** POST na Evolution. Devolve se deu certo e guarda o id da mensagem enviada (anti-loop). */
-async function postEvolution(caminho: string, apikey: string, corpo: unknown): Promise<boolean> {
-  try {
-    const res = await fetch(caminho, {
-      method: "POST",
-      headers: { apikey, "Content-Type": "application/json" },
-      body: JSON.stringify(corpo),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) {
-      console.error("evolution: falha ao responder", caminho.split("/").slice(-2, -1)[0], res.status, (await res.text()).slice(0, 300));
-      return false;
-    }
-    const json = (await res.json().catch(() => ({}))) as { key?: { id?: string } };
-    if (json.key?.id) await registrarEnviada(json.key.id);
-    return true;
-  } catch (e) {
-    console.error("evolution: erro ao responder", e);
-    return false;
-  }
-}
-
-/** Guarda os ids das mensagens do robô para nunca reprocessá-las (limpa as de mais de 2 dias). */
-async function registrarEnviada(id: string) {
-  try {
-    await gravarInterno("_whatsapp_enviadas", id, { id, quando: Date.now() });
-    if (Math.random() < 0.05) {
-      const limite = Date.now() - 2 * 86_400_000;
-      for (const e of await lerInterno<{ id: string; quando: number }>("_whatsapp_enviadas")) if (e.quando < limite) await gravarInterno("_whatsapp_enviadas", e.id, null);
-    }
-  } catch (e) {
-    console.error("whatsapp: não registrou mensagem enviada", e);
-  }
+function dadosEvolution(r: Recebida): ConexaoEvolution | null {
+  return r.responderPara ? montarConexao(r) : null;
 }
 
 /** Reage à mensagem recebida (ex.: ✅) em vez de responder em texto. */
 async function reagirEvolution(r: Recebida, emoji: string): Promise<boolean> {
   const d = dadosEvolution(r);
   if (!d || !r.chave) return false;
-  return postEvolution(`${d.servidor}/message/sendReaction/${encodeURIComponent(d.instancia)}`, d.apikey, { key: r.chave, reaction: emoji });
+  return postEvolution(d, "sendReaction", { key: r.chave, reaction: emoji });
 }
 
 /** Envia um cartão em imagem (PNG em base64) com uma legenda curta. */
 async function imagemEvolution(r: Recebida, base64: string, legenda: string): Promise<boolean> {
   const d = dadosEvolution(r);
   if (!d) return false;
-  return postEvolution(`${d.servidor}/message/sendMedia/${encodeURIComponent(d.instancia)}`, d.apikey, {
-    number: r.responderPara,
-    mediatype: "image",
-    mimetype: "image/png",
-    fileName: "gj.png",
-    caption: `${MARCA}${legenda}`,
-    media: base64,
-  });
+  return enviarImagem(d, r.responderPara!, base64, legenda);
 }
 
 /** Responde pela Evolution: com botões (se houver e estiverem ligados) e, se falhar, em texto puro. */
@@ -128,12 +84,10 @@ async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhat
     console.warn("evolution: sem dados para responder");
     return false;
   }
-  const base = `${d.servidor}/message`;
-  const inst = encodeURIComponent(d.instancia);
   // Botões via Evolution (técnica não oficial) não aparecem em grupos: lá vai sempre texto.
   if (usarBotoes && botoes?.length && !r.grupo) {
     const { titulo, corpo, rodape } = separarCartao(texto);
-    const ok = await postEvolution(`${base}/sendButtons/${inst}`, d.apikey, {
+    const ok = await postEvolution(d, "sendButtons", {
       number: r.responderPara,
       title: titulo,
       description: corpo,
@@ -142,7 +96,7 @@ async function responderEvolution(r: Recebida, texto: string, botoes?: BotaoWhat
     });
     if (ok) return true;
   }
-  return postEvolution(`${base}/sendText/${inst}`, d.apikey, { number: r.responderPara, text: texto });
+  return enviarTexto(d, r.responderPara!, texto);
 }
 
 async function responderMeta(para: string, texto: string) {
@@ -218,6 +172,8 @@ export async function POST(req: Request) {
     };
 
     if (recebida.provedor === "evolution") {
+      // guarda servidor/instância para o "bom dia" das 7h (que não tem mensagem para responder)
+      if (conhecida || recebida.propria) await lembrarConexao(recebida);
       const usarBotoes = banco.config.whatsappBotoes !== false;
       const somenteGrupo = !!banco.config.whatsappSomenteGrupo;
       const ehGrupoFinancas = !!recebida.grupo && !!banco.config.grupoWhatsapp && recebida.responderPara === banco.config.grupoWhatsapp;

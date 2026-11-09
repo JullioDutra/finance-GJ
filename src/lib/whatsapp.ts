@@ -8,6 +8,8 @@ import { opNovoLancamento, opsDesfazerConta, opsPagarConta, type Op } from "./op
 import { desfazerLote, processarAgenda, processarLista } from "./whatsapp-agenda";
 import { rotuloDia } from "./agenda";
 import { barra, BT, cartao, emojiCategoria, MSG_AJUDA, pctTexto, tabela, type BotaoWhats, type PedidoImagem } from "./whatsapp-modelos";
+import { processarAniversarios } from "./whatsapp-aniversarios";
+import { montarBomDia, textoBomDia } from "./bom-dia";
 
 export const AJUDA_WHATSAPP = MSG_AJUDA;
 
@@ -101,6 +103,14 @@ export function identificarPessoa(b: Banco, telefone: string): "p1" | "p2" | nul
 }
 
 export function processarMensagem(b: Banco, textoOriginal: string, pessoaPadrao: PessoaId, hoje: string): ResultadoMensagem {
+  // aniversários (um ou vários, um por linha)
+  const aniv = processarAniversarios(b, textoOriginal, hoje);
+  if (aniv) return aniv;
+  // "bom dia" sob demanda (o mesmo que chega às 7h)
+  const n0 = semAcento(textoOriginal.trim()).replace(/[!.,]+$/, "");
+  if (["bom dia", "bomdia", "radar", "resumo do dia"].includes(n0)) {
+    return { ok: true, ops: [], resposta: textoBomDia(b, montarBomDia(b, hoje)), imagem: { tipo: "bomdia" }, botoes: [BT.resumo, BT.contas, BT.ajuda] };
+  }
   // lista com várias linhas (compromissos/tarefas de uma vez)
   const lista = processarLista(b, textoOriginal, pessoaPadrao, hoje);
   if (lista) return lista;

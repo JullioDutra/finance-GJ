@@ -7,6 +7,7 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Banknote,
+  Cake,
   CalendarDays,
   Check,
   CircleAlert,
@@ -17,7 +18,13 @@ import {
   PiggyBank,
   ReceiptText,
   Search,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
   Wallet,
+  Sun,
+  HandCoins,
+  ChartColumn,
   type LucideIcon,
 } from "lucide-react";
 import type { Banco } from "../types";
@@ -25,6 +32,8 @@ import { contasDoMes, planoCasamento, resumoMes, totaisContas, variacao } from "
 import { diasEntre, dinheiro, nomeMes, somarMeses } from "../format";
 import { buscarNaAgenda, itensAgenda, rotuloDia, type ItemAgenda } from "../agenda";
 import { checklistTarefas, type ItemChecklist } from "../tarefas";
+import { montarBomDia, textoMarco, type AlertaRadar } from "../bom-dia";
+import { proximosAniversarios, textoIdade } from "../aniversarios";
 import type { PedidoImagem } from "../whatsapp";
 import { ICONES_EVENTO, iconeDaCategoria } from "@/components/icones";
 import * as Lucide from "lucide";
@@ -334,9 +343,9 @@ function Casamento(b: Banco, hoje: string) {
 
 // ---------- AGENDA ----------
 const COR_TIPO = (i: ItemAgenda) =>
-  i.tipo === "casamento" ? C.gold : i.tipo === "fornecedor" || i.tipo === "conta" ? C.despesa : i.tipo === "tarefa" ? C.warn : i.area === "casamento" ? C.brand : C.receita;
+  i.tipo === "aniversario" ? C.guardado : i.tipo === "casamento" ? C.gold : i.tipo === "fornecedor" || i.tipo === "conta" ? C.despesa : i.tipo === "tarefa" ? C.warn : i.area === "casamento" ? C.brand : C.receita;
 const ICONE_TIPO = (i: ItemAgenda): LucideIcon =>
-  i.tipo === "evento" ? (ICONES_EVENTO[i.evento?.tipo ?? "outro"] ?? CalendarDays) : i.tipo === "fornecedor" ? Banknote : i.tipo === "conta" ? ReceiptText : i.tipo === "tarefa" ? ListChecks : Heart;
+  i.tipo === "aniversario" ? Cake : i.tipo === "evento" ? (ICONES_EVENTO[i.evento?.tipo ?? "outro"] ?? CalendarDays) : i.tipo === "fornecedor" ? Banknote : i.tipo === "conta" ? ReceiptText : i.tipo === "tarefa" ? ListChecks : Heart;
 const SEM = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 const MES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 const corta = (t: string, n: number) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
@@ -599,6 +608,173 @@ function Ajuda() {
   };
 }
 
+// ---------- BOM DIA (7h) ----------
+const TOM: Record<AlertaRadar["tom"], string> = { alerta: C.danger, atencao: C.warn, info: C.receita, bom: C.ok };
+function iconeAlerta(a: AlertaRadar): LucideIcon {
+  if (a.icone === "ritmo") return a.tom === "bom" ? TrendingDown : TrendingUp;
+  if (a.icone === "conta") return ReceiptText;
+  if (a.icone === "tarefa") return ListChecks;
+  if (a.icone === "meta") return PiggyBank;
+  if (a.icone === "fornecedor") return HandCoins;
+  return ChartColumn;
+}
+
+function Secao({ titulo, cor = C.muted, children }: { titulo: string; cor?: string; children: ReactNode }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", padding: `0 ${PAD}px`, borderTop: `2px solid ${C.line}` }}>
+      <div style={{ display: "flex", height: 74, alignItems: "flex-end", paddingBottom: 12 }}>
+        <Rotulo cor={cor}>{titulo}</Rotulo>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function BomDiaCartao(b: Banco, hoje: string) {
+  const bd = montarBomDia(b, hoje);
+  const nomes = (p: string) => (p === "p1" ? b.config.nomeP1 : p === "p2" ? b.config.nomeP2 : "");
+  const marco = bd.marco;
+  const alturaTopo = marco !== null ? 400 : 300;
+  const comp = bd.compromissos.slice(0, 8);
+  const altura =
+    56 +
+    alturaTopo +
+    (bd.aniversariosHoje.length ? 40 + bd.aniversariosHoje.length * 76 : 0) +
+    74 + Math.max(1, comp.length) * ROW + (bd.compromissos.length > comp.length ? 50 : 0) +
+    (bd.radar.length ? 74 + bd.radar.length * 104 : 0) +
+    (bd.aniversariosEmBreve.length ? 74 + bd.aniversariosEmBreve.length * 64 : 0) +
+    56 + 30;
+  const nomesCasal = [b.config.nomeP1, b.config.nomeP2].filter(Boolean).join(" e ");
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <div style={{ display: "flex", flexDirection: "column", height: alturaTopo, background: marco !== null ? C.goldSoft : C.brand, color: marco !== null ? C.ink : "#fff8f3", padding: `${PAD}px ${PAD}px 40px` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <Ico icone={marco !== null ? Sparkles : Sun} size={30} color={marco !== null ? C.gold : "#f1d9e3"} />
+              <div style={{ display: "flex", marginLeft: 14 }}>
+                <Rotulo cor={marco !== null ? C.gold : "#f1d9e3"}>{bd.dataExtenso}</Rotulo>
+              </div>
+            </div>
+            <Monograma cor={marco !== null ? C.ink : "#fff8f3"} />
+          </div>
+          <div style={{ display: "flex", fontFamily: serif, fontSize: 76, lineHeight: 1.1, marginTop: 26 }}>{bd.segunda ? "Boa semana" : "Bom dia"}</div>
+          <div style={{ display: "flex", fontSize: 28, opacity: 0.85, marginTop: 6 }}>
+            {nomesCasal ? `${nomesCasal}${bd.diasCasamento !== null && bd.diasCasamento > 0 && marco === null ? ` · faltam ${bd.diasCasamento} dias para o casamento` : ""}` : ""}
+          </div>
+          {marco !== null && (
+            <div style={{ display: "flex", alignItems: "center", marginTop: 24, padding: "18px 26px", borderRadius: 22, background: "#ffffff99" }}>
+              <Ico icone={Heart} size={32} color={C.brand} />
+              <div style={{ display: "flex", fontFamily: serif, fontSize: 40, color: C.brand, marginLeft: 16 }}>{textoMarco(marco)}</div>
+            </div>
+          )}
+        </div>
+
+        {bd.aniversariosHoje.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", padding: `20px ${PAD}px`, background: C.okSoft }}>
+            {bd.aniversariosHoje.map((a) => (
+              <div key={a.aniversario.id} style={{ display: "flex", alignItems: "center", height: 76 }}>
+                <Chip icone={Cake} cor={C.guardado} tamanho={56} />
+                <div style={{ display: "flex", fontSize: 30, color: C.ink, marginLeft: 22 }}>
+                  <span>Hoje é aniversário de&nbsp;</span>
+                  <span style={{ fontWeight: 600 }}>{corta(a.aniversario.nome, 22)}</span>
+                  {a.idade ? <span style={{ color: C.muted, marginLeft: 12 }}>{`· ${textoIdade(a.idade)}`}</span> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <Secao titulo="Hoje" cor={C.brand}>
+          {!comp.length && (
+            <div style={{ display: "flex", alignItems: "center", height: ROW, fontSize: 30, color: C.muted }}>
+              <Ico icone={Sun} size={32} color={C.gold} />
+              <span style={{ marginLeft: 18 }}>Nenhum compromisso. Dia livre!</span>
+            </div>
+          )}
+          {comp.map((i) => {
+            const sub = [i.evento?.local, nomes(i.pessoa), !i.evento ? i.sub : i.area === "casamento" ? "Casamento" : ""].filter(Boolean).join(" · ");
+            return (
+              <div key={i.id} style={{ display: "flex", alignItems: "center", height: ROW }}>
+                <Chip icone={ICONE_TIPO(i)} cor={COR_TIPO(i)} tamanho={60} />
+                <div style={{ display: "flex", flexDirection: "column", marginLeft: 24, flex: 1 }}>
+                  <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: C.ink }}>{corta(i.titulo, 38)}</div>
+                  {sub && <div style={{ display: "flex", fontSize: 22, color: C.muted }}>{corta(sub, 52)}</div>}
+                </div>
+                {i.hora && <div style={{ display: "flex", fontFamily: serif, fontSize: 36, color: C.ink }}>{i.hora}</div>}
+              </div>
+            );
+          })}
+          {bd.compromissos.length > comp.length && <div style={{ display: "flex", height: 50, fontSize: 24, color: C.muted }}>{`+${bd.compromissos.length - comp.length} no app`}</div>}
+        </Secao>
+
+        {bd.radar.length > 0 && (
+          <Secao titulo="Radar do casal" cor={C.gold}>
+            {bd.radar.map((a, k) => (
+              <div key={k} style={{ display: "flex", alignItems: "center", height: 104 }}>
+                <Chip icone={iconeAlerta(a)} cor={TOM[a.tom]} tamanho={56} />
+                <div style={{ display: "flex", fontSize: 27, color: C.ink, marginLeft: 22, flex: 1, lineHeight: 1.3 }}>{corta(a.texto, 110)}</div>
+              </div>
+            ))}
+          </Secao>
+        )}
+
+        {bd.aniversariosEmBreve.length > 0 && (
+          <Secao titulo="Aniversários chegando">
+            {bd.aniversariosEmBreve.map((a) => (
+              <div key={a.aniversario.id} style={{ display: "flex", alignItems: "center", height: 64 }}>
+                <Ico icone={Cake} size={28} color={C.guardado} />
+                <div style={{ display: "flex", fontSize: 28, color: C.ink, marginLeft: 20, flex: 1 }}>{corta(a.aniversario.nome, 30)}</div>
+                <div style={{ display: "flex", fontSize: 24, color: C.muted }}>{`${rotuloDia(a.data, hoje)}${a.idade ? ` · ${textoIdade(a.idade)}` : ""}`}</div>
+              </div>
+            ))}
+          </Secao>
+        )}
+      </Moldura>
+    ),
+    legenda: marco !== null ? textoMarco(marco) : bd.segunda ? "Bom dia e boa semana" : "Bom dia",
+  };
+}
+
+// ---------- ANIVERSÁRIOS ----------
+function AniversariosCartao(b: Banco, hoje: string) {
+  const todos = proximosAniversarios(b, hoje, 60);
+  const lista = todos.slice(0, 12);
+  const altura = 56 + 190 + (lista.length ? lista.length * 100 : 160) + (todos.length > lista.length ? 70 : 0) + 120 + 30;
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo="Próximos 60 dias" titulo="Aniversários" />
+        {!lista.length && <Vazio texto={(b.aniversarios ?? []).length ? "Nenhum nos próximos 60 dias." : "Nenhum aniversário cadastrado ainda."} />}
+        {lista.map((p) => {
+          const d = new Date(p.data + "T12:00:00");
+          const hj = p.dias === 0;
+          return (
+            <div key={p.aniversario.id} style={{ display: "flex", alignItems: "center", height: 100, padding: `0 ${PAD}px`, borderTop: `2px solid ${C.line}`, background: hj ? C.okSoft : "transparent" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 96 }}>
+                <div style={{ display: "flex", fontFamily: serif, fontSize: 46, lineHeight: 1, color: hj ? C.ok : C.ink }}>{p.data.slice(8)}</div>
+                <div style={{ display: "flex", fontSize: 18, letterSpacing: 2, color: C.muted, marginTop: 4 }}>{MES[d.getMonth()]}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", flex: 1, marginLeft: 28 }}>
+                <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: C.ink }}>{corta(p.aniversario.nome, 30)}</div>
+                <div style={{ display: "flex", fontSize: 22, color: C.muted }}>{[p.aniversario.relacao, p.idade ? `faz ${p.idade} anos` : ""].filter(Boolean).join(" · ")}</div>
+              </div>
+              <div style={{ display: "flex", fontSize: 24, fontWeight: hj ? 600 : 400, color: hj ? C.ok : C.muted }}>{hj ? "HOJE" : p.dias === 1 ? "amanhã" : `em ${p.dias} dias`}</div>
+            </div>
+          );
+        })}
+        {todos.length > lista.length && <div style={{ display: "flex", height: 70, alignItems: "center", padding: `0 ${PAD}px`, fontSize: 24, color: C.muted }}>{`+${todos.length - lista.length} no app (Agenda → Aniversários)`}</div>}
+        <div style={{ display: "flex", margin: `30px ${PAD}px ${PAD}px`, padding: "22px 28px", background: C.soft, borderRadius: 24, fontSize: 25, color: C.muted }}>
+          Para cadastrar: aniversário tia Ana 15/03
+        </div>
+      </Moldura>
+    ),
+    legenda: "Próximos aniversários",
+  };
+}
+
 /** Gera o cartão como PNG (base64). Devolve null se não der para gerar. */
 export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string): Promise<{ base64: string; legenda: string } | null> {
   try {
@@ -617,6 +793,10 @@ export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string):
                   ? Ajuda()
                   : pedido.tipo === "lista"
                     ? Lista(b, pedido.lote, pedido.semData, pedido.repetidos, hoje)
+                    : pedido.tipo === "bomdia"
+                      ? BomDiaCartao(b, hoje)
+                      : pedido.tipo === "aniversarios"
+                        ? AniversariosCartao(b, hoje)
                     : Agenda(b, pedido.de, pedido.ate, pedido.titulo || `Agenda de ${rotuloDia(pedido.de, hoje)}`, hoje);
     const img = new ImageResponse(c.jsx, { width: W, height: Math.min(4000, Math.round(c.altura)), fonts: await carregarFontes() });
     const buf = Buffer.from(await img.arrayBuffer());

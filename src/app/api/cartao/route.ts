@@ -5,7 +5,7 @@ import { somarDias } from "@/lib/agenda";
 import type { PedidoImagem } from "@/lib/whatsapp";
 
 // Prévia dos cartões do WhatsApp (só para quem está logado — o proxy exige a sessão).
-// /api/cartao?tipo=resumo|contas|casamento|agenda|tarefas|busca|ajuda
+// /api/cartao?tipo=resumo|contas|casamento|agenda|tarefas|busca|ajuda|bomdia|aniversarios
 
 function hojeSP(): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
       ? { tipo: "contas", mes: hoje.slice(0, 7) }
       : tipo === "casamento"
         ? { tipo: "casamento" }
-        : tipo === "tarefas" || tipo === "ajuda"
+        : tipo === "tarefas" || tipo === "ajuda" || tipo === "bomdia" || tipo === "aniversarios"
           ? { tipo }
           : tipo === "busca"
             ? {

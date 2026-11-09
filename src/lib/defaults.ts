@@ -120,6 +120,7 @@ export function bancoVazio(): Banco {
     pagamentosFornecedores: orcamentoInicial().pagamentos,
     tarefas: TAREFAS_PADRAO.map((x) => ({ ...x })),
     eventos: [],
+    aniversarios: [],
   };
 }
 

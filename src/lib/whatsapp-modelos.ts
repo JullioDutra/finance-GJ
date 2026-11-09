@@ -104,6 +104,11 @@ export const MSG_AJUDA = cartao(
     "- `tarefa olhar convites` · `reabrir convites`",
     "- `casamento` mostra os pagamentos",
     "",
+    "*Aniversários*",
+    "- `aniversário tia Ana 15/03` · `aniversários`",
+    "- `apagar aniversário Ana`",
+    "- todo dia às 7h eu mando o *bom dia* com a agenda e os aniversários",
+    "",
     "*Consultas*",
     "- `resumo` · `contas`",
   ],
@@ -119,7 +124,9 @@ export type PedidoImagem =
   | { tipo: "tarefas" }
   | { tipo: "busca"; termo: string }
   | { tipo: "ajuda" }
-  | { tipo: "lista"; lote: string; semData: string[]; repetidos: number };
+  | { tipo: "lista"; lote: string; semData: string[]; repetidos: number }
+  | { tipo: "bomdia" }
+  | { tipo: "aniversarios" };
 
 // ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
 export interface BotaoWhats {

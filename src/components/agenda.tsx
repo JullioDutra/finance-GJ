@@ -9,7 +9,7 @@ import { areaPorTitulo, rotuloDia, tipoPorTitulo, type ItemAgenda, type TipoItem
 import type { AreaEvento, Evento, PessoaId, TipoEvento } from "@/lib/types";
 import { ICONES_EVENTO } from "./icones";
 import { Botao, Campo, cx, Input, Segmentos, Select, SeletorPessoa, Selo, Textarea, usePessoas } from "./ui";
-import { Banknote, ListChecks, ReceiptText } from "lucide-react";
+import { Banknote, Cake, ListChecks, ReceiptText } from "lucide-react";
 
 // ---------- modal "novo compromisso" (aberto pelo shell) ----------
 export interface AbrirEvento {
@@ -26,6 +26,7 @@ const ICONE_AUTOMATICO: Record<Exclude<TipoItemAgenda, "evento">, typeof Calenda
   tarefa: ListChecks,
   conta: ReceiptText,
   casamento: Heart,
+  aniversario: Cake,
 };
 
 export function iconeItem(i: ItemAgenda) {
@@ -37,6 +38,7 @@ export function tomItem(i: ItemAgenda): string {
   if (i.tipo === "fornecedor") return "bg-despesa/12 text-despesa";
   if (i.tipo === "conta") return "bg-despesa/12 text-despesa";
   if (i.tipo === "tarefa") return "bg-warn-soft text-warn";
+  if (i.tipo === "aniversario") return "bg-guardado/12 text-guardado";
   return i.area === "casamento" ? "bg-brand-soft text-brand" : "bg-receita/12 text-receita";
 }
 
@@ -44,6 +46,7 @@ export function corPonto(i: ItemAgenda): string {
   if (i.tipo === "casamento") return "bg-gold";
   if (i.tipo === "fornecedor" || i.tipo === "conta") return "bg-despesa";
   if (i.tipo === "tarefa") return "bg-warn";
+  if (i.tipo === "aniversario") return "bg-guardado";
   return i.area === "casamento" ? "bg-brand" : "bg-receita";
 }
 
@@ -55,6 +58,7 @@ export function LegendaAgenda() {
         ["bg-brand", "Casamento"],
         ["bg-despesa", "Pagamentos"],
         ["bg-warn", "Prazos de tarefas"],
+        ["bg-guardado", "Aniversários"],
         ["bg-gold", "Dia do casamento"],
       ].map(([c, n]) => (
         <span key={n} className="inline-flex items-center gap-1.5">

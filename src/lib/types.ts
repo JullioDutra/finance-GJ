@@ -30,6 +30,8 @@ export interface Configuracoes {
   grupoWhatsapp?: string;
   /** quando ligado, o robô lê SOMENTE o grupo de finanças e ignora todo o resto */
   whatsappSomenteGrupo?: boolean;
+  /** "bom dia" automático às 7h no grupo (padrão: sim) */
+  whatsappBomDia?: boolean;
 }
 
 export interface Categoria {
@@ -145,6 +147,18 @@ export interface Evento {
   lote?: string;
 }
 
+export interface Aniversario {
+  id: string;
+  nome: string;
+  /** dia e mês (MM-DD) */
+  data: string;
+  /** ano de nascimento (opcional, para mostrar a idade) */
+  ano?: number;
+  /** relação: família, amigos, trabalho… */
+  relacao: string;
+  observacao: string;
+}
+
 export interface Banco {
   config: Configuracoes;
   categorias: Categoria[];
@@ -155,6 +169,7 @@ export interface Banco {
   pagamentosFornecedores: PagamentoFornecedor[];
   tarefas: Tarefa[];
   eventos: Evento[];
+  aniversarios: Aniversario[];
 }
 
 export type Colecao = Exclude<keyof Banco, "config"> | "config";
@@ -169,4 +184,5 @@ export const COLECOES: Colecao[] = [
   "pagamentosFornecedores",
   "tarefas",
   "eventos",
+  "aniversarios",
 ];

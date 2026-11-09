@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import {
+  Cake,
   CalendarClock,
   CalendarDays,
   CalendarHeart,
@@ -45,6 +46,7 @@ const NAV_AGENDA: ItemNav[] = [
   { href: "/agenda", nome: "Próximos", icone: CalendarClock },
   { href: "/agenda/calendario", nome: "Calendário", icone: CalendarDays },
   { href: "/agenda/buscar", nome: "Buscar", icone: Search },
+  { href: "/agenda/aniversarios", nome: "Aniversários", icone: Cake },
 ];
 
 const NAV_CASAMENTO: ItemNav[] = [

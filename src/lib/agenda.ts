@@ -4,9 +4,10 @@
 
 import type { AreaEvento, Banco, Evento, PessoaId, TipoEvento } from "./types";
 import { contasDoMes } from "./calc";
+import { dataNoAno, idadeEm } from "./aniversarios";
 import { isoDe, mesDe, semAcento, somarMeses } from "./format";
 
-export type TipoItemAgenda = "evento" | "fornecedor" | "tarefa" | "conta" | "casamento";
+export type TipoItemAgenda = "evento" | "fornecedor" | "tarefa" | "conta" | "casamento" | "aniversario";
 
 export interface ItemAgenda {
   id: string;
@@ -44,6 +45,15 @@ export function itensAgenda(b: Banco, opts: { automaticos?: boolean; hoje?: stri
     }
     if (b.config.dataCasamento) {
       itens.push({ id: "casamento", data: b.config.dataCasamento, hora: "", titulo: "Nosso casamento", sub: "", tipo: "casamento", area: "casamento", pessoa: "casal" });
+    }
+    // aniversários: repetem todo ano (ano passado, este e o próximo)
+    const anoHoje = Number((opts.hoje ?? isoDe(new Date())).slice(0, 4));
+    for (const a of b.aniversarios ?? []) {
+      for (let ano = anoHoje - 1; ano <= anoHoje + 1; ano++) {
+        const data = dataNoAno(a, ano);
+        const idade = idadeEm(a, data);
+        itens.push({ id: `a-${a.id}-${ano}`, data, hora: "", titulo: `Aniversário de ${a.nome}`, sub: [idade ? `${idade} anos` : "", a.relacao].filter(Boolean).join(" · "), tipo: "aniversario", area: "casal", pessoa: "casal" });
+      }
     }
     // contas fixas não pagas: do mês passado até 3 meses à frente
     const base = mesDe(opts.hoje ?? isoDe(new Date()));
