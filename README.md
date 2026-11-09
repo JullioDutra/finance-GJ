@@ -103,6 +103,16 @@ Aniversários: tela em **Agenda → Aniversários** e pelo WhatsApp:
 
 Tarefas: `tarefas` (checklist) · `feito 3` · `reabrir convites`.
 
+### Convidados (Painel dos Noivos)
+O bot conversa com a API do site do casamento (`https://gabriellaejullio.pythonanywhere.com/painel/api/`, ou `PAINEL_NOIVOS_URL`).
+- Na Vercel: `PAINEL_API_TOKEN` com **o mesmo token** configurado no PythonAnywhere.
+- Comandos: `convidados` (resumo em imagem) · `confirmados` · `pendentes convidados` (ou `quem falta`) · `faltando` · `todos os convidados` · `novo convidado Maria Souza 3` (com `tel 61...` opcional) · `convidado Maria` · `remover convidado Maria` (ou o número `#12`).
+- Aviso de nova confirmação no grupo:
+  - pelo webhook: no PythonAnywhere, `PAINEL_WEBHOOK_URL=https://financas-gj.vercel.app/api/painel-noivos`;
+  - ou consultando: o bom dia da manhã já confere; para avisos quase na hora, um cron na VPS:
+    `*/10 * * * * curl -s "https://financas-gj.vercel.app/api/painel-noivos?token=SEU_WHATSAPP_WEBHOOK_TOKEN" >/dev/null`
+  - Os dois podem ficar ligados: cada confirmação é avisada uma vez só.
+
 Calendário do mês em imagem (dias com compromisso em vermelho): `calendario` · `calendario dezembro` · `calendario próximo`.
 
 Agenda: `agenda` · `agenda amanhã` · `agenda semana` · `marcar sexta 19h dentista` · `desmarcar dentista` · `buscar buffet`.

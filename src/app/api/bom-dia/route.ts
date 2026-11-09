@@ -3,6 +3,7 @@ import { bancoConfigurado, carregarBanco } from "@/lib/server/db";
 import { conexaoSalva } from "@/lib/server/evolution";
 import { gerarCartao } from "@/lib/server/cartoes";
 import { buscarEvangelho } from "@/lib/server/evangelho";
+import { painelConfigurado, verificarConfirmacoes } from "@/lib/server/painel";
 import { autorizadoAgendado, destinosAgendados, enviarParaTodos, hojeSP, jaEnviado, marcarEnviado } from "@/lib/server/agendados";
 import { montarBomDia, textoBomDia } from "@/lib/bom-dia";
 import { textoEvangelho } from "@/lib/evangelho";
@@ -59,6 +60,9 @@ export async function GET(req: Request) {
       saida.evangelho = r.resultado;
     }
   }
+
+  // 3. confirmações de presença que chegaram no painel e ainda não foram avisadas
+  if (painelConfigurado()) saida.confirmacoes = await verificarConfirmacoes(banco);
 
   console.info(`manhã ${hoje}: ${JSON.stringify(saida)}`);
   return NextResponse.json({ ok: true, ...saida });

@@ -8,6 +8,7 @@ import { assinar, ehMensagemDoRobo, MARCA, MSG_AJUDA, separarCartao } from "../s
 import { textoEvangelho } from "../src/lib/evangelho";
 import { textoEstudo } from "../src/lib/estudo";
 import { diasOcupados, mesDoArgumento } from "../src/lib/whatsapp-agenda";
+import { buscarConvites, lerComandoConvidados, textoAvisoConfirmacoes, type ConvitePainel } from "../src/lib/convidados";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda } from "../src/lib/agenda";
 import { aplicarOps } from "../src/lib/ops";
 import { proximaData } from "../src/lib/aniversarios";
@@ -482,6 +483,31 @@ assert.equal(wa("xyz qualquer coisa").reagir, undefined);
   rc = processarMensagem(bc, "calendario dezembro", "p1", h);
   assert.ok(rc.imagem?.tipo === "calendario" && rc.imagem.mes === "2026-12" && rc.resposta.includes("Ceia"));
   assert.equal(processarMensagem(bc, "calendario xyz", "p1", h).ok, false);
+}
+
+// convidados (Painel dos Noivos)
+{
+  assert.deepEqual(lerComandoConvidados("Convidados"), { tipo: "resumo" });
+  assert.deepEqual(lerComandoConvidados("confirmados"), { tipo: "lista", status: "confirmados" });
+  assert.deepEqual(lerComandoConvidados("quem falta"), { tipo: "lista", status: "pendentes" });
+  assert.deepEqual(lerComandoConvidados("novo convidado Maria Souza 3"), { tipo: "novo", nome: "Maria Souza", quantidade: 3, telefone: "" });
+  assert.deepEqual(lerComandoConvidados("novo convidado Tio Zé tel 61 99999-8888"), { tipo: "novo", nome: "Tio Zé", quantidade: 1, telefone: "61999998888" });
+  assert.deepEqual(lerComandoConvidados("remover convidado #12"), { tipo: "remover", busca: "#12", id: 12 });
+  assert.deepEqual(lerComandoConvidados("remover convidado Maria"), { tipo: "remover", busca: "Maria", id: null });
+  assert.deepEqual(lerComandoConvidados("convidado Maria"), { tipo: "ver", busca: "Maria" });
+  assert.equal(lerComandoConvidados("contas"), null);
+  assert.equal(lerComandoConvidados("pendentes"), null, "pendentes continua sendo das contas");
+  const conv = (id: number, nome: string): ConvitePainel => ({ id, nome, telefone: "", grupo: "", observacoes: "", quantidade_esperada: 2, quantidade_confirmada: 0, faltam: 2, confirmado: false, confirmacoes_site: [] });
+  const lista = [conv(1, "Maria Souza"), conv(2, "Maria Lima"), conv(3, "João")];
+  assert.equal(buscarConvites(lista, "maria").length, 2);
+  assert.equal(buscarConvites(lista, "maria souza")[0].id, 1);
+  assert.equal(buscarConvites(lista, "joao")[0].id, 3);
+  const aviso = textoAvisoConfirmacoes(
+    [{ confirmacao: { id: 7, nome: "Joana", telefone: "", quantidade: 1, mensagem: "Estaremos lá!", criado_em: "" }, convite: { ...conv(3, "Maria Souza"), quantidade_esperada: 5, quantidade_confirmada: 1, faltam: 4 } }],
+    { convites: 10, convites_confirmados: 4, convites_pendentes: 6, pessoas_esperadas: 60, pessoas_confirmadas: 42, pessoas_faltando: 18, confirmacoes_sem_vinculo: 0 },
+  );
+  assert.ok(aviso.includes("*Joana* confirmou 1 pessoa") && aviso.includes("1 de 5 (faltam 4)") && aviso.includes("*42* confirmadas"), aviso);
+  semEmoji(aviso);
 }
 
 console.log("✅ Todos os testes de lógica passaram");

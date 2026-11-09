@@ -118,6 +118,11 @@ export const MSG_AJUDA = cartao(
     "- `tarefa olhar convites` · `reabrir convites`",
     "- `casamento` mostra os pagamentos",
     "",
+    "*Convidados (site do casamento)*",
+    "- `convidados` resumo · `confirmados` · `pendentes convidados` · `faltando`",
+    "- `novo convidado Maria Souza 3` · `convidado Maria` · `remover convidado Maria`",
+    "- cada confirmação feita no site chega aqui no grupo",
+    "",
     "*Aniversários*",
     "- `aniversário tia Ana 15/03` · `aniversários`",
     "- `apagar aniversário Ana`",
@@ -145,7 +150,8 @@ export type PedidoImagem =
   | { tipo: "lista"; lote: string; semData: string[]; repetidos: number }
   | { tipo: "bomdia" }
   | { tipo: "aniversarios" }
-  | { tipo: "calendario"; mes: string };
+  | { tipo: "calendario"; mes: string }
+  | { tipo: "convidados"; resumo: import("./convidados").ResumoPainel };
 
 // ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
 export interface BotaoWhats {

@@ -31,6 +31,7 @@ import { checklistTarefas, type ItemChecklist } from "../tarefas";
 import { MAX_TAREFAS_BOM_DIA, montarBomDia, prazoTarefa, textoMarco } from "../bom-dia";
 import { proximosAniversarios, textoIdade } from "../aniversarios";
 import { diasOcupados } from "../whatsapp-agenda";
+import type { ResumoPainel } from "../convidados";
 import type { PedidoImagem } from "../whatsapp";
 import { ICONES_EVENTO, iconeDaCategoria } from "@/components/icones";
 import * as Lucide from "lucide";
@@ -868,6 +869,48 @@ function CalendarioCartao(b: Banco, mes: string, hoje: string) {
   };
 }
 
+// ---------- CONVIDADOS (Painel dos Noivos) ----------
+function ConvidadosCartao(r: ResumoPainel) {
+  const frac = r.pessoas_esperadas ? r.pessoas_confirmadas / r.pessoas_esperadas : 0;
+  const altura = 56 + 190 + 300 + 185 + (r.confirmacoes_sem_vinculo ? 70 : 0) + 56;
+  const caixa = (rotulo: string, valor: number, cor: string) => (
+    <div key={rotulo} style={{ display: "flex", flex: 1, flexDirection: "column", padding: 26, borderRadius: 26, background: cor + "14" }}>
+      <div style={{ display: "flex", fontSize: 22, color: C.muted }}>{rotulo}</div>
+      <div style={{ display: "flex", fontFamily: serif, fontSize: 64, color: cor, lineHeight: 1.1 }}>{String(valor)}</div>
+    </div>
+  );
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo="Confirmações de presença" titulo="Convidados" />
+        <div style={{ display: "flex", flexDirection: "column", margin: `0 ${PAD}px`, padding: 34, background: C.goldSoft, borderRadius: 28, height: 270 }}>
+          <div style={{ display: "flex", alignItems: "baseline" }}>
+            <div style={{ display: "flex", fontFamily: serif, fontSize: 110, color: C.ink, lineHeight: 1 }}>{String(r.pessoas_confirmadas)}</div>
+            <div style={{ display: "flex", fontSize: 32, color: C.muted, marginLeft: 16 }}>{`de ${r.pessoas_esperadas} pessoas`}</div>
+          </div>
+          <div style={{ display: "flex", marginTop: 30 }}>
+            <Barra fracao={frac} cor={C.ok} altura={18} />
+          </div>
+          <div style={{ display: "flex", fontSize: 26, color: C.muted, marginTop: 14 }}>{`${Math.round(frac * 100)}% confirmadas`}</div>
+        </div>
+        <div style={{ display: "flex", gap: 20, padding: `30px ${PAD}px 0` }}>
+          {caixa("Faltando", r.pessoas_faltando, C.warn)}
+          {caixa("Convites confirmados", r.convites_confirmados, C.ok)}
+          {caixa("Convites pendentes", r.convites_pendentes, C.brand)}
+        </div>
+        {r.confirmacoes_sem_vinculo > 0 && (
+          <div style={{ display: "flex", alignItems: "center", margin: `24px ${PAD}px 0`, fontSize: 24, color: C.danger }}>
+            <Ico icone={CircleAlert} size={28} color={C.danger} />
+            <span style={{ marginLeft: 12 }}>{`${r.confirmacoes_sem_vinculo} confirmação(ões) do site sem convite (vincule no painel)`}</span>
+          </div>
+        )}
+      </Moldura>
+    ),
+    legenda: `Convidados · ${r.pessoas_confirmadas} de ${r.pessoas_esperadas} confirmadas`,
+  };
+}
+
 /** Gera o cartão como PNG (base64). Devolve null se não der para gerar. */
 export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string): Promise<{ base64: string; legenda: string } | null> {
   try {
@@ -892,6 +935,8 @@ export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string):
                         ? AniversariosCartao(b, hoje)
                         : pedido.tipo === "calendario"
                           ? CalendarioCartao(b, pedido.mes, hoje)
+                          : pedido.tipo === "convidados"
+                            ? ConvidadosCartao(pedido.resumo)
                     : Agenda(b, pedido.de, pedido.ate, pedido.titulo || `Agenda de ${rotuloDia(pedido.de, hoje)}`, hoje);
     const img = new ImageResponse(c.jsx, { width: W, height: Math.min(4000, Math.round(c.altura)), fonts: await carregarFontes() });
     const buf = Buffer.from(await img.arrayBuffer());

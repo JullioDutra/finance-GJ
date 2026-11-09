@@ -21,6 +21,8 @@ import { BT } from "@/lib/whatsapp-modelos";
 import { cartao, separarCartao, type BotaoWhats } from "@/lib/whatsapp-modelos";
 import { buscarEvangelho } from "@/lib/server/evangelho";
 import { textoEvangelho } from "@/lib/evangelho";
+import { lerComandoConvidados } from "@/lib/convidados";
+import { executarComandoConvidados } from "@/lib/server/painel";
 import { semAcento } from "@/lib/format";
 import { enviarImagem, enviarTexto, lembrarConexao, montarConexao, postEvolution, type ConexaoEvolution } from "@/lib/server/evolution";
 import { gerarCartao } from "@/lib/server/cartoes";
@@ -250,6 +252,27 @@ export async function POST(req: Request) {
       const texto = ev ? textoEvangelho(ev) : cartao("*Evangelho indisponível*", ["Não consegui buscar o evangelho de hoje agora. Tente de novo daqui a pouco."]);
       const ok = await responderEvolution(recebida, texto, undefined, false, banco.config.nomeRobo);
       return decidir({ ok: !!ev, respondido: ok }, `evangelho do dia${ev ? "" : " (indisponível)"}`);
+    }
+
+    // convidados do casamento (Painel dos Noivos): precisa de internet, por isso fica aqui
+    const cmdConv = recebida.provedor === "evolution" ? lerComandoConvidados(recebida.texto) : null;
+    if (cmdConv) {
+      const rc = await executarComandoConvidados(cmdConv);
+      let ok = false;
+      let modo = "texto";
+      if (rc.ok && rc.reagir && recebida.chave && banco.config.whatsappReacoes !== false) {
+        ok = await reagirEvolution(recebida, rc.reagir);
+        modo = "reação";
+      } else if (rc.imagem && banco.config.whatsappImagens !== false) {
+        const img = await gerarCartao(banco, rc.imagem, hojeSP());
+        if (img) ok = await imagemEvolution(recebida, img.base64, img.legenda, banco.config.nomeRobo);
+        modo = "imagem";
+      }
+      if (!ok) {
+        ok = await responderEvolution(recebida, rc.texto, undefined, false, banco.config.nomeRobo);
+        modo = "texto";
+      }
+      return decidir({ ok: rc.ok, respondido: ok, resposta: rc.texto }, `convidados (${cmdConv.tipo}) · respondeu com ${modo}`);
     }
 
     const r = processarMensagem(banco, recebida.texto, pessoa, hojeSP());
