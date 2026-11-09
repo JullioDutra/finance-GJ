@@ -459,19 +459,19 @@ function NomeRobo() {
 
 function PreviaCartoes() {
   const { modo } = useDados();
-  const [tipo, setTipo] = useState<"bomdia" | "resumo" | "agenda" | "contas" | "casamento" | "tarefas" | "aniversarios" | "ajuda" | null>(null);
+  const [tipo, setTipo] = useState<"bomdia" | "resumo" | "agenda" | "contas" | "casamento" | "tarefas" | "aniversarios" | "calendario" | "ajuda" | null>(null);
   const [versao, setVersao] = useState(0);
   if (modo !== "nuvem") return null;
   return (
     <div className="rounded-xl border border-line p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-muted">Ver prévia do cartão:</span>
-        {(["bomdia", "resumo", "agenda", "contas", "casamento", "tarefas", "aniversarios", "ajuda"] as const).map((t) => (
+        {(["bomdia", "resumo", "agenda", "contas", "casamento", "tarefas", "aniversarios", "calendario", "ajuda"] as const).map((t) => (
           <button key={t} type="button" onClick={() => {
               setTipo(tipo === t ? null : t);
               setVersao(Date.now());
             }} className={cx("rounded-full border px-3 py-1 capitalize", tipo === t ? "border-brand bg-brand-soft text-brand" : "border-line text-muted hover:text-ink")}>
-            {t === "bomdia" ? "bom dia" : t === "aniversarios" ? "aniversários" : t}
+            {t === "bomdia" ? "bom dia" : t === "aniversarios" ? "aniversários" : t === "calendario" ? "calendário" : t}
           </button>
         ))}
       </div>

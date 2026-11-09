@@ -26,6 +26,8 @@ export async function GET(req: Request) {
       ? { tipo: "contas", mes: hoje.slice(0, 7) }
       : tipo === "casamento"
         ? { tipo: "casamento" }
+        : tipo === "calendario"
+          ? { tipo: "calendario", mes: hoje.slice(0, 7) }
         : tipo === "tarefas" || tipo === "ajuda" || tipo === "bomdia" || tipo === "aniversarios"
           ? { tipo }
           : tipo === "busca"

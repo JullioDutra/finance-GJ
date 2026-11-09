@@ -30,6 +30,7 @@ import { buscarNaAgenda, itensAgenda, rotuloDia, type ItemAgenda } from "../agen
 import { checklistTarefas, type ItemChecklist } from "../tarefas";
 import { MAX_TAREFAS_BOM_DIA, montarBomDia, prazoTarefa, textoMarco } from "../bom-dia";
 import { proximosAniversarios, textoIdade } from "../aniversarios";
+import { diasOcupados } from "../whatsapp-agenda";
 import type { PedidoImagem } from "../whatsapp";
 import { ICONES_EVENTO, iconeDaCategoria } from "@/components/icones";
 import * as Lucide from "lucide";
@@ -770,6 +771,103 @@ function AniversariosCartao(b: Banco, hoje: string) {
   };
 }
 
+// ---------- CALENDÁRIO DO MÊS ----------
+const SEM_CURTO = ["D", "S", "T", "Q", "Q", "S", "S"];
+
+function CalendarioCartao(b: Banco, mes: string, hoje: string) {
+  const ocupados = new Map(diasOcupados(b, mes, hoje));
+  const aniversarios = new Set(itensAgenda(b, { hoje }).filter((i) => i.tipo === "aniversario" && i.data.startsWith(mes)).map((i) => i.data));
+  const [ano, m] = mes.split("-").map(Number);
+  const primeiro = new Date(ano, m - 1, 1).getDay();
+  const total = new Date(ano, m, 0).getDate();
+  const celulas: (number | null)[] = [...Array(primeiro).fill(null), ...Array.from({ length: total }, (_, i) => i + 1)];
+  while (celulas.length % 7) celulas.push(null);
+  const semanas = Array.from({ length: celulas.length / 7 }, (_, i) => celulas.slice(i * 7, i * 7 + 7));
+  const CEL = 112;
+  const lista = [...ocupados.entries()];
+  const mostrar = lista.slice(0, 12);
+  const altura = 56 + 190 + 56 + semanas.length * CEL + 90 + (mostrar.length ? 74 + mostrar.length * 62 + (lista.length > mostrar.length ? 54 : 0) : 0) + 56;
+  const largura = (W - 56 - PAD * 2) / 7;
+  return {
+    altura,
+    jsx: (
+      <Moldura altura={altura}>
+        <Cabecalho rotulo={`Calendário · ${lista.length} dia(s) com compromisso`} titulo={nomeMes(mes)} />
+        <div style={{ display: "flex", flexDirection: "column", padding: `0 ${PAD}px` }}>
+          <div style={{ display: "flex", height: 56, alignItems: "center" }}>
+            {SEM_CURTO.map((d, i) => (
+              <div key={i} style={{ display: "flex", width: largura, justifyContent: "center", fontSize: 22, fontWeight: 600, letterSpacing: 2, color: C.muted }}>
+                {d}
+              </div>
+            ))}
+          </div>
+          {semanas.map((sem, k) => (
+            <div key={k} style={{ display: "flex", height: CEL }}>
+              {sem.map((dia, i) => {
+                if (!dia) return <div key={i} style={{ display: "flex", width: largura }} />;
+                const iso = `${mes}-${String(dia).padStart(2, "0")}`;
+                const cheio = ocupados.has(iso);
+                const qtd = ocupados.get(iso)?.length ?? 0;
+                const ehHoje = iso === hoje;
+                const passado = iso < hoje;
+                return (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", width: largura, alignItems: "center", justifyContent: "center" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        width: 76,
+                        height: 76,
+                        borderRadius: 76,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: cheio ? (passado ? "#e9a3a1" : C.danger) : "transparent",
+                        border: ehHoje ? `4px solid ${C.brand}` : "4px solid transparent",
+                        fontSize: 32,
+                        fontWeight: cheio || ehHoje ? 600 : 400,
+                        color: cheio ? "#ffffff" : passado ? "#b3a9ad" : C.ink,
+                      }}
+                    >
+                      {String(dia)}
+                    </div>
+                    <div style={{ display: "flex", height: 18, marginTop: 4, alignItems: "center" }}>
+                      {qtd > 1 && <div style={{ display: "flex", fontSize: 16, fontWeight: 600, color: C.danger }}>{`${qtd}x`}</div>}
+                      {aniversarios.has(iso) && <div style={{ display: "flex", width: 10, height: 10, borderRadius: 10, background: C.guardado, marginLeft: qtd > 1 ? 6 : 0 }} />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+          <div style={{ display: "flex", height: 90, alignItems: "center", fontSize: 22, color: C.muted }}>
+            <div style={{ display: "flex", width: 22, height: 22, borderRadius: 22, background: C.danger }} />
+            <span style={{ marginLeft: 10, marginRight: 30 }}>compromisso</span>
+            <div style={{ display: "flex", width: 22, height: 22, borderRadius: 22, border: `4px solid ${C.brand}` }} />
+            <span style={{ marginLeft: 10, marginRight: 30 }}>hoje</span>
+            <div style={{ display: "flex", width: 12, height: 12, borderRadius: 12, background: C.guardado }} />
+            <span style={{ marginLeft: 10 }}>aniversário</span>
+          </div>
+        </div>
+        {mostrar.length > 0 && (
+          <Secao titulo="Compromissos do mês" cor={C.danger}>
+            {mostrar.map(([dia, itens]) => {
+              const d = new Date(dia + "T12:00:00");
+              const texto = itens.map((i) => (i.hora ? `${i.hora} ` : "") + i.titulo).join(" · ");
+              return (
+                <div key={dia} style={{ display: "flex", alignItems: "center", height: 62, opacity: dia < hoje ? 0.55 : 1 }}>
+                  <div style={{ display: "flex", width: 110, fontSize: 26, fontWeight: 600, color: C.danger }}>{`${SEM[d.getDay()].slice(0, 3)} ${dia.slice(8)}`}</div>
+                  <div style={{ display: "flex", flex: 1, fontSize: 27, color: C.ink }}>{corta(texto, 50)}</div>
+                </div>
+              );
+            })}
+            {lista.length > mostrar.length && <div style={{ display: "flex", height: 54, alignItems: "center", fontSize: 24, color: C.muted }}>{`+${lista.length - mostrar.length} dia(s) no app`}</div>}
+          </Secao>
+        )}
+      </Moldura>
+    ),
+    legenda: `Calendário · ${nomeMes(mes)}`,
+  };
+}
+
 /** Gera o cartão como PNG (base64). Devolve null se não der para gerar. */
 export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string): Promise<{ base64: string; legenda: string } | null> {
   try {
@@ -792,6 +890,8 @@ export async function gerarCartao(b: Banco, pedido: PedidoImagem, hoje: string):
                       ? BomDiaCartao(b, hoje)
                       : pedido.tipo === "aniversarios"
                         ? AniversariosCartao(b, hoje)
+                        : pedido.tipo === "calendario"
+                          ? CalendarioCartao(b, pedido.mes, hoje)
                     : Agenda(b, pedido.de, pedido.ate, pedido.titulo || `Agenda de ${rotuloDia(pedido.de, hoje)}`, hoje);
     const img = new ImageResponse(c.jsx, { width: W, height: Math.min(4000, Math.round(c.altura)), fonts: await carregarFontes() });
     const buf = Buffer.from(await img.arrayBuffer());

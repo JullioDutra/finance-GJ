@@ -5,7 +5,7 @@
 //   buscar <palavra>                            -> pesquisa em todas as datas
 
 import type { AreaEvento, Banco, Evento, PessoaId, Tarefa } from "./types";
-import { novoId, semAcento } from "./format";
+import { nomeMes, novoId, semAcento } from "./format";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda, rotuloDia, somarDias, tipoPorTitulo, type ItemAgenda } from "./agenda";
 import { cartao, type BotaoWhats, type PedidoImagem } from "./whatsapp-modelos";
 import { checklistTarefas, type ItemChecklist } from "./tarefas";
@@ -41,6 +41,49 @@ function linhaItem(b: Banco, i: ItemAgenda, comDia: boolean, hoje: string): stri
   return `- ${quando ? `*${quando}* — ` : ""}${i.titulo}${extra ? ` _(${extra})_` : ""}`;
 }
 
+const MESES_NOMES = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+/** "", "dezembro", "dez", "12", "12/2027", "proximo", "que vem", "passado" -> YYYY-MM */
+export function mesDoArgumento(arg: string, hoje: string): string | null {
+  const a = semAcento(arg).replace(/^(de|do|da)\s+/, "").trim();
+  const atual = hoje.slice(0, 7);
+  const somar = (m: string, n: number) => {
+    const d = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 + n, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  if (!a || a === "deste mes" || a === "do mes" || a === "mes") return atual;
+  if (/^(proximo|que vem|mes que vem|proximo mes)$/.test(a)) return somar(atual, 1);
+  if (/^(passado|mes passado|anterior)$/.test(a)) return somar(atual, -1);
+  const num = a.match(/^(\d{1,2})(?:\/(\d{2}|\d{4}))?$/);
+  let mesN = 0;
+  let ano = 0;
+  if (num) {
+    mesN = Number(num[1]);
+    if (num[2]) ano = Number(num[2].length === 2 ? "20" + num[2] : num[2]);
+  } else {
+    const m = a.match(/^([a-z]+)(?:\s+(?:de\s+)?(\d{4}))?$/);
+    if (!m) return null;
+    const idx = MESES_NOMES.findIndex((n) => n === m[1] || (m[1].length >= 3 && n.startsWith(m[1])));
+    if (idx < 0) return null;
+    mesN = idx + 1;
+    if (m[2]) ano = Number(m[2]);
+  }
+  if (mesN < 1 || mesN > 12) return null;
+  if (!ano) {
+    // sem ano: o mês mais próximo (meses que já passaram há mais de 2 meses vão para o ano que vem)
+    ano = Number(hoje.slice(0, 4));
+    if (mesN < Number(hoje.slice(5, 7)) - 2) ano += 1;
+  }
+  return `${ano}-${String(mesN).padStart(2, "0")}`;
+}
+
+/** Dias do mês com compromissos (só eventos de verdade), em ordem. */
+export function diasOcupados(b: Banco, mes: string, hoje: string): [string, ItemAgenda[]][] {
+  const mapa = new Map<string, ItemAgenda[]>();
+  for (const i of itensAgenda(b, { hoje }).filter((x) => x.tipo === "evento" && x.data.startsWith(mes))) mapa.set(i.data, [...(mapa.get(i.data) ?? []), i]);
+  return [...mapa.entries()];
+}
+
 const PREFIXOS_FEITO = ["feito", "feita", "feitos", "feitas", "fiz", "concluir", "concluido", "concluida", "conclui", "terminei", "check"];
 
 function barraTexto(f: number, n = 10): string {
@@ -65,6 +108,24 @@ function tirarPrefixo(texto: string, prefixos: string[]): string | null {
 
 export function processarAgenda(b: Banco, texto: string, pessoa: PessoaId, hoje: string): Resultado | null {
   const norm = semAcento(texto);
+
+  // ----- calendário do mês (imagem com os dias ocupados em vermelho) -----
+  if (/^(calendario|calend)\b/.test(norm)) {
+    const mes = mesDoArgumento(norm.replace(/^calend\S*\s*/, ""), hoje);
+    if (!mes) return { ok: false, ops: [], resposta: cartao("*Não entendi o mês*", ["Tente: `calendario`, `calendario dezembro`, `calendario 01/2027` ou `calendario próximo`."]) };
+    const dias = diasOcupados(b, mes, hoje);
+    const nomeMesTxt = nomeMes(mes);
+    const linhas = dias.length
+      ? dias.map(([dia, itens]) => `- *${rotuloDia(dia, hoje)}* — ${itens.map((i) => (i.hora ? `${i.hora} ` : "") + i.titulo).join("; ")}`)
+      : ["Nenhum compromisso neste mês."];
+    return {
+      ok: true,
+      ops: [],
+      resposta: cartao(`*Calendário · ${nomeMesTxt}*`, [`${dias.length} dia(s) com compromisso`, "", ...linhas.slice(0, 20)], "Para ver um dia: agenda 21/11"),
+      imagem: { tipo: "calendario", mes },
+      botoes: [BT_AG.hoje, BT_AG.semana],
+    };
+  }
 
   // ----- listar -----
   if (norm === "agenda" || norm.startsWith("agenda ") || norm === "compromissos") {

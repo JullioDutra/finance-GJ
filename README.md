@@ -103,6 +103,8 @@ Aniversários: tela em **Agenda → Aniversários** e pelo WhatsApp:
 
 Tarefas: `tarefas` (checklist) · `feito 3` · `reabrir convites`.
 
+Calendário do mês em imagem (dias com compromisso em vermelho): `calendario` · `calendario dezembro` · `calendario próximo`.
+
 Agenda: `agenda` · `agenda amanhã` · `agenda semana` · `marcar sexta 19h dentista` · `desmarcar dentista` · `buscar buffet`.
 
 Exemplos: `mercado 154,90` · `gastei 45 uber` · `recebi 3500 salário` · `guardei 500` · `paguei luz` · `resumo` · `contas` · `casamento`.

@@ -109,6 +109,7 @@ export const MSG_AJUDA = cartao(
     "- `marcar sexta 19h dentista`",
     "- `desmarcar dentista`",
     "- `buscar vestido` · `buscar 21/11`",
+    "- `calendario` · `calendario dezembro`: o mês com os dias ocupados em vermelho",
     "- vários de uma vez: `marcar` e um item por linha",
     "",
     "*Casamento*",
@@ -143,7 +144,8 @@ export type PedidoImagem =
   | { tipo: "ajuda" }
   | { tipo: "lista"; lote: string; semData: string[]; repetidos: number }
   | { tipo: "bomdia" }
-  | { tipo: "aniversarios" };
+  | { tipo: "aniversarios" }
+  | { tipo: "calendario"; mes: string };
 
 // ---------- botões (Evolution sendButtons: até 3 respostas rápidas) ----------
 export interface BotaoWhats {

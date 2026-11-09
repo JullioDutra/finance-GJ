@@ -7,6 +7,7 @@ import { comandoSessao, ehAtivarGrupo, MSG_INICIO, novaExpiracao, sessaoAtiva } 
 import { assinar, ehMensagemDoRobo, MARCA, MSG_AJUDA, separarCartao } from "../src/lib/whatsapp-modelos";
 import { textoEvangelho } from "../src/lib/evangelho";
 import { textoEstudo } from "../src/lib/estudo";
+import { diasOcupados, mesDoArgumento } from "../src/lib/whatsapp-agenda";
 import { areaPorTitulo, buscarNaAgenda, extrairData, extrairHora, itensAgenda } from "../src/lib/agenda";
 import { aplicarOps } from "../src/lib/ops";
 import { proximaData } from "../src/lib/aniversarios";
@@ -457,6 +458,30 @@ assert.equal(wa("xyz qualquer coisa").reagir, undefined);
   const es = textoEstudo("2026-11-09");
   assert.ok(es.includes("Hora de estudar") && es !== textoEstudo("2026-11-10"));
   semEmoji(es);
+}
+
+// calendário do mês
+{
+  const h = "2026-11-09";
+  assert.equal(mesDoArgumento("", h), "2026-11");
+  assert.equal(mesDoArgumento("dezembro", h), "2026-12");
+  assert.equal(mesDoArgumento("jan", h), "2027-01");
+  assert.equal(mesDoArgumento("outubro", h), "2026-10");
+  assert.equal(mesDoArgumento("03/2027", h), "2027-03");
+  assert.equal(mesDoArgumento("próximo", h), "2026-12");
+  assert.equal(mesDoArgumento("banana", h), null);
+  const bc = bancoVazio();
+  bc.eventos.push(
+    { id: "c1", titulo: "Dentista", data: "2026-11-20", hora: "09:00", local: "", tipo: "consulta", observacao: "", area: "casal" },
+    { id: "c2", titulo: "Prova do vestido", data: "2026-11-20", hora: "15:00", local: "", tipo: "prova", observacao: "", area: "casamento" },
+    { id: "c3", titulo: "Ceia", data: "2026-12-24", hora: "", local: "", tipo: "social", observacao: "", area: "casal" },
+  );
+  assert.deepEqual(diasOcupados(bc, "2026-11", h).map(([d, i]) => [d, i.length]), [["2026-11-20", 2]]);
+  let rc = processarMensagem(bc, "calendário", "p1", h);
+  assert.ok(rc.ok && rc.imagem?.tipo === "calendario" && rc.imagem.mes === "2026-11" && rc.resposta.includes("Dentista"), rc.resposta);
+  rc = processarMensagem(bc, "calendario dezembro", "p1", h);
+  assert.ok(rc.imagem?.tipo === "calendario" && rc.imagem.mes === "2026-12" && rc.resposta.includes("Ceia"));
+  assert.equal(processarMensagem(bc, "calendario xyz", "p1", h).ok, false);
 }
 
 console.log("✅ Todos os testes de lógica passaram");
